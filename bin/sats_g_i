@@ -13,27 +13,19 @@ from quippy.io import AtomsWriter
 from quippy.dynamicalsystem import DynamicalSystem
 from quippy.structures import bcc, fcc, supercell
 
+from sats.structures import bcc_interstitial_111
+
 fs_lattice_parameter = 3.18
 species = 74
-lattice = quippy.__dict__[sys.argv[1]]
 
 # This is a little bit higher as python sometimes truncates 3.99
 max_atoms = 55
 
-if lattice.func_name == 'sc':
-    lattice_parameter = fs_lattice_parameter*0.5*(2**0.5)
-else:
-    lattice_parameter = fs_lattice_parameter
+lattice_parameter = fs_lattice_parameter
 
-# Make a cubic supercell with up to max_atoms in it
-bulk = lattice(lattice_parameter, species)
-n_supercell = int((float(max_atoms)/bulk.n)**(1.0/3.0))
-bulk = supercell(bulk, n_supercell, n_supercell, n_supercell)
+supercell = (3, 3, 3)
+bulk = bcc_interstitial_111(lattice_parameter, species='W', supercell=supercell)
 
-# bcc 111 dumbell
-displacement = (1.0/6)*lattice_parameter
-bulk.add_atoms(bulk[-1].position + displacement, species)
-bulk[-2].position -= displacement
 
 out = AtomsWriter('tst.xyz')
 out.write(bulk)
@@ -71,7 +63,7 @@ connect_interval = 200
 write_interval = 20000
 equilibration_steps = 100000
 
-trajectory = 'traj_{}_{}.xyz'.format(lattice.func_name, TEMPERATURE)
+trajectory = 'traj_{}_{}.xyz'.format('tst', TEMPERATURE)
 out = AtomsWriter(trajectory)
 
 dynamical_system.atoms.calc_connect()
