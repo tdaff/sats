@@ -6,10 +6,25 @@ Various data relating to different elements.
 """
 
 
-class Element(object):
+class Element(str):
     """
     Representation of a single element species.
     """
+    def __new__(cls, species):
+        """
+        Create new immutable Element.
+        """
+        # Interpret any numeric values before setting the string value
+        # since it cannot be changed later.
+        try:
+            atomic_number = int(species)
+            species = ATOMIC_NUMBER[atomic_number]
+        except ValueError:
+            # Species is not an integer value so assume it is
+            # an element string.
+            pass
+        return str.__new__(cls, species)
+
     def __init__(self, species):
         """
         Interpret species as an element type.
@@ -32,25 +47,21 @@ class Element(object):
             # Assume it is an element symbol
             self.z = ATOMIC_NUMBER.index(species)
 
+        str.__init__(self, species)
+
+    def __int__(self):
+        """Atomic number of the element as an integer."""
+        return self.z
+
     @property
     def atomic_number(self):
         """Atomic number."""
         return self.z
 
-    @atomic_number.setter
-    def atomic_number(self, value):
-        """Atomic number."""
-        self.z = int(value)
-
     @property
     def symbol(self):
         """Element symbol."""
         return ATOMIC_NUMBER[self.z]
-
-    @symbol.setter
-    def symbol(self, value):
-        """Element symbol."""
-        self.z = ATOMIC_NUMBER.index(value)
 
 
 # If this is a nice list we can just .index or [slice] to get atomic numbers

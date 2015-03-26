@@ -7,12 +7,14 @@ Run sats and generate some configurations. With self-interstitials.
 
 import sys
 
-import quippy
 from quippy.potential import Potential, Minim
 from quippy.io import AtomsWriter
 from quippy.dynamicalsystem import DynamicalSystem
 
 from sats.structures import bcc_interstitial_dumbell
+from sats.structures import bcc_interstitial_crowdion
+from sats.structures import bcc_interstitial_tetrahedral
+from sats.structures import bcc_interstitial_octahedral
 
 fs_lattice_parameter = 3.18
 species = 74
@@ -21,14 +23,36 @@ species = 74
 max_atoms = 55
 
 lattice_parameter = fs_lattice_parameter
-
 supercell = (3, 3, 3)
-bulk = bcc_interstitial_dumbell(lattice_parameter, species='W',
-                                direction='110',
-                                supercell=supercell)
 
+interstitial = sys.argv[1]
 
-out = AtomsWriter('tst.xyz')
+if interstitial == 'db_111':
+    bulk = bcc_interstitial_dumbell(lattice_parameter, species='W',
+                                    direction='111',
+                                    supercell=supercell)
+elif interstitial == 'db_110':
+    bulk = bcc_interstitial_dumbell(lattice_parameter, species='W',
+                                    direction='110',
+                                    supercell=supercell)
+elif interstitial == 'db_100':
+    bulk = bcc_interstitial_dumbell(lattice_parameter, species='W',
+                                    direction='100',
+                                    supercell=supercell)
+elif interstitial == 'crw':
+    bulk = bcc_interstitial_crowdion(lattice_parameter, species='W',
+                                     supercell=supercell)
+elif interstitial == 'tet':
+    bulk = bcc_interstitial_tetrahedral(lattice_parameter, species='W',
+                                        supercell=supercell)
+elif interstitial == 'oct':
+    bulk = bcc_interstitial_octahedral(lattice_parameter, species='W',
+                                       supercell=supercell)
+else:
+    print("Unknown interstitial {0}".format(interstitial))
+    raise SystemExit
+
+out = AtomsWriter('{0}.xyz'.format(interstitial))
 out.write(bulk)
 
 fs_potential = Potential('IP FS')
@@ -64,7 +88,7 @@ connect_interval = 200
 write_interval = 20000
 equilibration_steps = 100000
 
-trajectory = 'traj_{}_{}.xyz'.format('tst', TEMPERATURE)
+trajectory = 'traj_{}_{}.xyz'.format(interstitial, TEMPERATURE)
 out = AtomsWriter(trajectory)
 
 dynamical_system.atoms.calc_connect()

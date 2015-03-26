@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+
+"""
+Run sats and generate some configurations. With self-interstitials.
+
+"""
+
+import os
+import sys
+
+from quippy import Atoms
+from quippy.potential import Potential, Minim
+from quippy.io import AtomsWriter
+from quippy.dynamicalsystem import DynamicalSystem
+
+from sats.surfaces import intermediate_surfaces
+from sats.io import castep_write
+
+bcc_lattice_parameter = 3.18
+fcc_lattice_parameter = 3.95
+hcp_lattice_parameter = 2.79
+species = 74
+
+fs_potential = Potential('IP FS')
+fs_potential.set_calc_args({'E_scale': 0.99519, 'r_scale': 0.99302})
+
+surface_id = sys.argv[1]
+
+if 'bcc' in surface_id:
+    lattice_parameter = bcc_lattice_parameter
+elif 'fcc' in surface_id:
+    lattice_parameter = fcc_lattice_parameter
+elif 'hcp' in surface_id:
+    lattice_parameter = hcp_lattice_parameter
+else:
+    raise NotImplementedError("{0} not available".format(surface_id))
+
+surfaces = [Atoms(surface) for surface in
+            intermediate_surfaces('W', lattice_parameter, surface=surface_id)]
+
+for idx, surface in enumerate(surfaces):
+    castep_write(surface, filename='{0}_s{1}'.format(surface_id, idx),
+                 optimise=True, fix_lattice=True)
+
+
+for idx, surface in enumerate(surfaces):
+
+    surface.set_cutoff(fs_potential.cutoff() + 2.0)
+    surface.set_calculator(fs_potential)
+
+    minimiser = Minim(surface, relax_positions=True, relax_cell=True)
+    minimiser.run()
+
+    temperature = int(sys.argv[2])
+    # From 10.1007/BF01184339, thermal expansion of tungsten is small, but for
+    # different temperatures we can expand a bit:
+    # 3000 K V/V0 = 1.11;
+    # 5000 K V/V0 = 1.29
+    #
+    if temperature == 1000:
+        surface.set_lattice(surface.lattice * 1.003, scale_positions=True)
+    elif temperature == 3000:
+        surface.set_lattice(surface.lattice * (1.11 ** (1.0 / 3)), scale_positions=True)
+    elif temperature == 5000:
+        surface.set_lattice(surface.lattice * (1.29 ** (1.0 / 3)), scale_positions=True)
+
+    dynamical_system = DynamicalSystem(surface)
+    dynamical_system.rescale_velo(temperature)
+
+    total_steps = 1100000
+    timestep = 1.0  # fs
+    connect_interval = 200
+    write_interval = 20000
+    equilibration_steps = 100000
+
+    trajectory = 'traj_{0}_s{1}_{2}.xyz'.format(surface_id, idx, temperature)
+    out = AtomsWriter(trajectory)
+
+    dynamical_system.atoms.calc_connect()
+    fs_potential.calc(dynamical_system.atoms, force=True, energy=True, virial=True)
+
+    structure_count = 0
+    base_dir = os.getcwd()
+
+    # Basic NVE molecular dynamics
+    for step_number in range(1, total_steps + 1):
+        dynamical_system.advance_verlet1(timestep,
+                                         virial=dynamical_system.atoms.virial)
+        fs_potential.calc(dynamical_system.atoms, force=True,
+                          energy=True, virial=True)
+        dynamical_system.advance_verlet2(timestep, f=dynamical_system.atoms.force,
+                                         virial=dynamical_system.atoms.virial)
+
+        # Maintenance of the system
+        if not step_number % connect_interval:
+            dynamical_system.atoms.calc_connect()
+            if step_number < equilibration_steps:
+                dynamical_system.rescale_velo(temperature)
+
+        if not step_number % write_interval:
+            dynamical_system.print_status(epot=dynamical_system.atoms.energy)
+            dynamical_system.rescale_velo(temperature)
+            if step_number > equilibration_steps:
+                out.write(dynamical_system.atoms)
+                write_path = '{0}_s{1}_{2}/{3:03d}'.format(
+                    surface_id, idx, temperature, structure_count)
+                write_filename = '{0}_s{1}_{2}.{3:03d}'.format(
+                    surface_id, idx, temperature, structure_count)
+                try:
+                    os.makedirs(write_path)
+                except OSError:
+                    # Exists
+                    pass
+                os.chdir(write_path)
+                castep_write(dynamical_system.atoms,
+                             filename=write_filename)
+                os.chdir(base_dir)
+                structure_count += 1
+
+    out.close()
