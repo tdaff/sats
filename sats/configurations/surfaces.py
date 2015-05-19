@@ -5,9 +5,9 @@ Surfaces and atom-by-atom layers to create all steps.
 
 """
 
-
 import ase.lattice.surface
-from sats.elements import Element
+
+from sats.core.elements import Element
 
 
 def intermediate_surfaces(species, lattice_parameter, surface='bcc100',
