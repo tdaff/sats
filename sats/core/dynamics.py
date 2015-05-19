@@ -9,7 +9,7 @@ import os
 from quippy.dynamicalsystem import DynamicalSystem
 from quippy.io import AtomsWriter
 
-from sats.io import castep_write
+from sats.core.io import castep_write
 
 
 def molecular_dynamics(system, potential, temperature, total_steps=1100000,
@@ -18,6 +18,9 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
 
     dynamical_system = DynamicalSystem(system)
     dynamical_system.rescale_velo(temperature)
+    print(dynamical_system.atoms.velo.T)
+    dynamical_system.atoms.velo[3, :] = 0
+    print(dynamical_system.atoms.velo.T)
 
     base_dir = os.getcwd()
     run_path = '{0}_{1}/'.format(system.name, temperature)

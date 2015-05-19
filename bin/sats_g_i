@@ -9,12 +9,12 @@ import sys
 
 from quippy.potential import Potential, Minim
 
-from sats.dynamics import molecular_dynamics
-from sats.io import castep_write
-from sats.structures import interstitial_dumbbell
-from sats.structures import interstitial_crowdion
-from sats.structures import interstitial_tetrahedral
-from sats.structures import interstitial_octahedral
+from sats.core.dynamics import molecular_dynamics
+from sats.core.io import castep_write
+from sats.configurations.interstitial import interstitial_dumbbell
+from sats.configurations.interstitial import interstitial_crowdion
+from sats.configurations.interstitial import interstitial_tetrahedral
+from sats.configurations.interstitial import interstitial_octahedral
 
 fs_lattice_parameter = 3.18
 fcc_lattice_parameter = 3.95

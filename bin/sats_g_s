@@ -13,8 +13,9 @@ from quippy.potential import Potential
 from quippy.io import AtomsWriter
 from quippy.dynamicalsystem import DynamicalSystem
 
-from sats.surfaces import intermediate_surfaces
-from sats.io import castep_write
+from sats.configurations.surfaces import intermediate_surfaces
+from sats.core.io import castep_write
+
 
 bcc_lattice_parameter = 3.18
 fcc_lattice_parameter = 3.95
