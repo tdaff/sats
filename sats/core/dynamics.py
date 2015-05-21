@@ -5,6 +5,7 @@ Generic dynamics routines.
 """
 
 import os
+import sys
 
 from quippy import Atoms
 from quippy.dynamicalsystem import DynamicalSystem
@@ -12,6 +13,31 @@ from quippy.io import AtomsWriter
 from quippy.potential import Potential, Minim
 
 from sats.core.io import castep_write
+from sats.ui.log import info, debug
+
+
+# CAPTURE quippy output
+class Capturing(list):
+    def __enter__(self):
+        # capture normal stdout and put in a pipe
+        self.stdout_fileno = sys.stdout.fileno()
+        self.stdout_save = os.dup(self.stdout_fileno)
+        self.pipe_in, self.pipe_out = os.pipe()
+        os.dup2(self.pipe_out, self.stdout_fileno)
+        os.close(self.pipe_out)
+        return self
+
+    def grab(self):
+        lines = os.read(self.pipe_in, 99999).splitlines()
+        self.extend(lines)
+        return lines
+
+    def __exit__(self, *args):
+        os.close(self.stdout_fileno)
+        self.extend(os.read(self.pipe_in, 99999).splitlines())
+        os.close(self.pipe_in)
+        os.dup2(self.stdout_save, self.stdout_fileno)
+        os.close(self.stdout_save)
 
 
 def relax_structure(system, potential, relax_positions=True, relax_cell=True):
@@ -31,12 +57,22 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
     minimised_structure : Atoms
         The geometry optimised structure.
     """
+    info("Inside minimiser.")
+
+    system = Atoms(system)
     run_potential = Potential(potential)
     system.set_calculator(run_potential)
 
     minimiser = Minim(system, relax_positions=relax_positions,
                       relax_cell=relax_cell)
-    minimiser.run()
+
+    with Capturing() as output:
+        minimiser.run()
+
+    for statement in output:
+        debug(statement)
+
+    info("Minimiser done.")
 
     return system
 
