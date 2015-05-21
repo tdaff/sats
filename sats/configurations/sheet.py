@@ -12,11 +12,7 @@ from math import sin, cos, radians, ceil
 from ase.atoms import Atoms
 
 from sats.core.elements import Element
-from sats.ui.options import add_option
 
-# Not using as a decorator, just add all the sheet types here
-add_option('structure', 'types', [], str, 'Type of structure to work with.',
-           multiple=True, valid_values=['db', 'crw', 'tet', 'oct'])
 
 def sheet(species, alat, blat=None, gamma=90.0, supercell=(1, 1),
           orthorhombic=False, depth=10.0):

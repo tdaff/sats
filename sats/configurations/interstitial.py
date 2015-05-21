@@ -10,17 +10,6 @@ import re
 import quippy.structures
 
 from sats.core.elements import Element
-from sats.ui.options import add_option
-
-# Not using as a decorator, just add all the interstitial types here and
-# any specific options.
-add_option('structure', 'types', [], str, 'Type of structure to work with.',
-           multiple=True, valid_values=['db', 'crw', 'tet', 'oct'])
-add_option('structure', 'lattice', ['bcc'], str,
-           'Base lattice type for the structure.', multiple=True,
-           valid_values=['fcc', 'bcc'])
-add_option('structure', 'db_direction', '111', str,
-           'Lattice direction along which to create a dumbbell interstitial')
 
 
 def interstitial_dumbbell(lattice, lattice_parameter, species, direction='111',

@@ -8,9 +8,6 @@ Simple commandline parser utilising argparse.
 import sys
 from collections import OrderedDict
 
-from sats.ui.options import format_defaults
-
-
 
 def parse_args():
     """
@@ -25,16 +22,11 @@ def parse_args():
 
     args = OrderedDict()
 
-    description = "sats structure generation tool. Generate some structures"
-
     for arg in sys.argv[1:]:
         if arg in ['-h', '--help', 'help', 'ui.help']:
-            print("usage: {0} [section.option=value ...]".format(sys.argv[0]))
-            print("")
-            print(description)
-            print("")
-            print("\n".join(format_defaults()))
-            raise SystemExit
+            section = 'ui'
+            option = 'help'
+            value = 'True'
         elif '=' in arg:
             option, value = arg.split('=')
             section, option = option.split('.')
@@ -50,6 +42,8 @@ def parse_args():
             args[section] = OrderedDict()
 
         args[section][option] = value
+
+    return args
 
 _parsed_args = parse_args()
 
@@ -72,7 +66,7 @@ def get(section, option):
         The value of the section.option option. The value will be a string,
 
     """
-    if section in _parsed_args and option in _parsed_args[section][option]:
+    if section in _parsed_args and option in _parsed_args[section]:
         return _parsed_args[section][option]
     else:
         return None
