@@ -15,7 +15,6 @@ __all__ = ['debug', 'info', 'warning', 'error', 'critical']
 import copy
 import logging
 import sys
-from logging import debug, info, warning, error, critical
 
 
 class ColouredConsoleHandler(logging.StreamHandler):
@@ -47,13 +46,23 @@ def _init_logging(verbosity=0):
     """
     Setup the logging to terminal and sats.log file, with levels as required.
 
+    Parameters
+    ---------
+    verbosity : int
+        Level of output to produce. 1 = debug level, 0 = info level,
+        -1 = quiet, -2 = silent.
     """
+
     root_logger = logging.getLogger()
+    root_logger.handlers = []
+    root_logger.addHandler(logging.NullHandler())
+
+    sats_logger = logging.getLogger('sats')
 
     # Have the logger itself set with the lowest possible level
-    root_logger.setLevel(logging.DEBUG)
+    sats_logger.setLevel(logging.DEBUG)
     # Reset any handlers that might have been set accidentally
-    root_logger.handlers = []
+    sats_logger.handlers = []
 
     # Always at least INFO in .flog
     file_level = logging.INFO
@@ -72,10 +81,11 @@ def _init_logging(verbosity=0):
     # Easier to do simple file configuration then add the stdout
     file_handler = logging.FileHandler(log_filename)
     file_handler.setLevel(file_level)
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s <%(funcName)s> %(message)s',
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s <%(funcName)s> '
+                                  '%(message)s',
                                   datefmt='%Y%m%d %H:%M:%S')
     file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
+    sats_logger.addHandler(file_handler)
 
     # Make these uniform widths
     logging.addLevelName(10, '--')
@@ -90,6 +100,13 @@ def _init_logging(verbosity=0):
     formatter = logging.Formatter('%(levelname)s %(message)s')
     console.setFormatter(formatter)
     # add the handler to the root logger
-    root_logger.addHandler(console)
+    sats_logger.addHandler(console)
 
-_init_logging()
+_init_logging(1)
+
+_sats_logger = logging.getLogger('sats')
+debug = _sats_logger.debug
+info = _sats_logger.info
+warning = _sats_logger.warning
+error = _sats_logger.error
+critical = _sats_logger.critical
