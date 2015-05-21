@@ -7,52 +7,113 @@ Frontend to the sats package.
 
 """
 
-from quippy import Atoms
-from quippy.potential import Potential, Minim
-
-from sats.core.dynamics import molecular_dynamics
+import sats
+from sats.bulk.rescale import bulk_rescale_factor
+from sats.configurations import bulk
+from sats.core.dynamics import molecular_dynamics, relax_structure
+from sats.core.elements import Element
 from sats.core.io import castep_write
-from sats.configurations.sheet import sheet
+from sats.ui.log import info, debug
+from sats.ui.options import add_option, get
 
 
-fs_lattice_parameter = 3.18
-fcc_lattice_parameter = 3.95
-hcp_lattice_parameter = 2.79
-species = 74
+# Options that are referenced in the main sats part of the procedure.
+_valid_structures = [
+    'bulk',  # bulk lattices
+    'db', 'crw', 'tet', 'oct',  # interstitial
+]
+add_option('structure', 'type', [], str, 'Type of structures to generate.',
+           multiple=True, valid_values=_valid_structures)
+add_option('structure', 'lattice', ['bcc'], str,
+           'Base lattice type for the structure.', multiple=True,
+           valid_values=['fcc', 'bcc', 'hcp', 'a15'])
+add_option('structure', 'db_direction', '111', str,
+           "Lattice direction along which to create a dumbbell interstitial")
+add_option('structure', 'species', 'W', str, "Chemical species identifier.")
+add_option('structure', 'min_atoms', 0, int, "Minimum number of atoms that "
+           "the structure should contain.")
 
-fs_potential = Potential('IP FS')
-fs_potential.set_calc_args({'E_scale': 0.99519, 'r_scale': 0.99302})
+def sats_main():
+    """
+    Main sats procedure. All the logic goes in here.
+    """
 
-lattice_parameter = fs_lattice_parameter
-supercell = (4, 4, 4)
+    info("Welcome to sats_main version {0}.".format(sats.__version__))
+    structures = get('structure', 'type')
+    species = Element(get('structure', 'species'))
+    min_atoms = get('structure', 'min_atoms')
+    info("Got structures: {0}.".format(", ".join(structures)))
 
-structure_2d = Atoms(sheet(species, fs_lattice_parameter, gamma=90,
-                           supercell=supercell, orthorhombic=True))
-# structure_2d.translate((0, 0, -structure_2d.get_center_of_mass()[2]))
+    for structure in structures:
+        if structure == 'bulk':
+            lattices = get('structure', 'lattice')
+            for lattice in lattices:
+                configuration = bulk.bulk(species, lattice, min_atoms)
+                configuration.name = '{0}_bulk'.format(lattice)
+                info("Using structure {0}".format(configuration.name))
+                # Write the as-generated structure
+                castep_write(configuration, configuration.name, optimise=True,
+                             fix_lattice=False)
+                # Lattice constants from the literature so we use
+                # them rather than the ones that the potential gives
+                md_generate(configuration, pre_minimise=False)
 
-structure_2d.name = "W_3.18_120_44"
 
-castep_write(structure_2d, structure_2d.name, optimise=False, fix_lattice=False)
 
-structure_2d.set_cutoff(fs_potential.cutoff() + 2.0)
-structure_2d.set_calculator(fs_potential)
+add_option('md', 'potential', 'IP FS', str, "Potential function to use to "
+           "calculate the forces during molecular dynamics.")
+add_option('md', 'temperature', [300.0], float, "Temperatures in Kelvin to "
+           "run MD generation routines at.", multiple=True)
+add_option('md', 'pressure', [0.0], float, "Pressure points in GPa to run "
+           "MD generation routines at.", multiple=True)
+add_option('md', 'timestep', 1.0, float, "Molecular dynamics timestep in fs.")
+add_option('md', 'equilibration_time', 10.0, float, "Time in picoseconds to "
+           "equilibrate the system before generating configurations.")
+add_option('md', 'time_between_configurations', 1.0, float, "Time in "
+           "picoseconds between writing out configurations.")
+add_option('sats', 'num_configs', 20, int, "Number of configurations to "
+           "derive from each initial configuration.")
 
-minimiser = Minim(structure_2d, relax_positions=True, relax_cell=True)
-minimiser.run()
+def md_generate(configuration, pre_minimise=False):
+    """
+    Generate new configurations using MD on the input configuration.
 
-castep_write(structure_2d, "min" + structure_2d.name, optimise=False, fix_lattice=True)
+    Parameters
+    ----------
+    configuration : ase.Atoms
+        Starting configuration of atoms.
+    pre_minimise : bool
+        Whether to run a minimisation on the structure before running the
+        molecular dynamics.
+    """
 
-temperature = int(5000)
-# From 10.1007/BF01184339, thermal expansion of tungsten is small, but for
-# different temperatures we can expand a bit:
-# 3000 K V/V0 = 1.11;
-# 5000 K V/V0 = 1.29
-#
-if temperature == 1000:
-    structure_2d.set_lattice(structure_2d.lattice*1.003, scale_positions=True)
-elif temperature == 3000:
-    structure_2d.set_lattice(structure_2d.lattice*(1.11**(1.0/3)), scale_positions=True)
-elif temperature == 5000:
-    structure_2d.set_lattice(structure_2d.lattice*(1.29**(1.0/3)), scale_positions=True)
+    potential = get('md', 'potential')
+    species = Element(get('structure', 'species'))
+    timestep = get('md', 'timestep')
+    equilibration_steps = int((get('md', 'equilibration_time')*1000)/timestep)
+    write_interval = int((get('md', 'time_between_configurations')*1000)/timestep)
+    total_steps = equilibration_steps+write_interval*get('sats', 'num_configs')
 
-molecular_dynamics(structure_2d, fs_potential, temperature)
+    if pre_minimise:
+        relax_structure(configuration, potential)
+
+    for pressure in get('md', 'pressure'):
+        # Name does not get carried over in a copy()
+        p_config = configuration.copy()
+        if pressure != 0.0:
+            p_config.name = '{0}_{1:g}GPa'.format(configuration.name, pressure)
+        else:
+            p_config.name = configuration.name
+        for temperature in get('md', 'temperature'):
+            pt_config = p_config.copy()
+            pt_config.name = p_config.name
+            rescale_factor = bulk_rescale_factor(species, temperature,
+                                                 pressure)
+            pt_config.set_cell(pt_config.cell*rescale_factor)
+            molecular_dynamics(pt_config, potential, temperature,
+                               total_steps=total_steps, timestep=timestep,
+                               write_interval=write_interval,
+                               equilibration_steps=equilibration_steps)
+
+if __name__ == '__main__':
+    sats_main()

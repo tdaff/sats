@@ -5,6 +5,7 @@ File reading and writing utilities.
 
 """
 
+from quippy import Atoms
 from quippy.castep import CastepCell, CastepParam
 
 BASE_CELL = {'kpoint_mp_spacing': 0.015,
@@ -30,6 +31,7 @@ def castep_write(atoms, filename='default.cell', optimise=False,
                  fix_lattice=False):
     """Write atoms a castep cell file and param file."""
 
+    atoms = Atoms(atoms)
     local_cell = BASE_CELL.copy()
     if fix_lattice:
         local_cell['fix_all_cell'] = 'true'

@@ -75,7 +75,7 @@ def add_option(section, option, default_value, parser_function, doc,
     return wrapper
 
 
-def get(section, option):
+def get(section, option=None):
     """
     Return the value for the specified option. The value type will be the
     type expected by the default value.
@@ -84,15 +84,19 @@ def get(section, option):
     ----------
     section : str
         The section where the option is located.
-    option : str
-        The name of the option to retrieve.
+    option : str, optional
+        The name of the option to retrieve. If not given, the section is
+        split as section.option.
 
     Returns
     -------
-    value : any
+    value : Any
         The value of the section.option option. The type is the type specified
         by the default option.
     """
+
+    if option is None:
+        section, option = section.split('.')
 
     try:
         signature = DEFAULTS[section][option]
@@ -133,4 +137,6 @@ def format_defaults(width=80):
 
     :return:
     """
+    for section in sorted(DEFAULTS):
+        print(section)
     return ["", ""]
