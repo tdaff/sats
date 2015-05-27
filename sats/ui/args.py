@@ -30,9 +30,12 @@ def parse_args():
         elif '=' in arg:
             option, value = arg.split('=')
             section, option = option.split('.')
-        else:
+        elif '.' in arg:
             value = "True"
             section, option = arg.split('.')
+        else:
+            value = "True"
+            section = option = arg
 
         section = section.strip()
         option = option.strip()

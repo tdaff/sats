@@ -14,7 +14,7 @@ from sats.core.dynamics import molecular_dynamics, relax_structure
 from sats.core.elements import Element
 from sats.core.io import castep_write
 from sats.ui.log import info, debug
-from sats.ui.options import add_option, get
+from sats.ui.options import add_option, get, format_defaults
 
 
 # Options that are referenced in the main sats part of the procedure.
@@ -49,11 +49,11 @@ def sats_main():
             lattices = get('structure', 'lattice')
             for lattice in lattices:
                 configuration = bulk.bulk(species, lattice, min_atoms)
-                configuration.name = '{0}_bulk'.format(lattice)
-                info("Using structure {0}".format(configuration.name))
+                configuration.info['name'] = '{0}_bulk'.format(lattice)
+                info("Using structure {0}".format(configuration.info['name']))
                 # Write the as-generated structure
-                castep_write(configuration, configuration.name, optimise=True,
-                             fix_lattice=False)
+                castep_write(configuration, configuration.info['name'],
+                             optimise=True, fix_lattice=False)
                 # Lattice constants from the literature so we use
                 # them rather than the ones that the potential gives
                 md_generate(configuration, pre_minimise=False)
@@ -101,12 +101,10 @@ def md_generate(configuration, pre_minimise=False):
         # Name does not get carried over in a copy()
         p_config = configuration.copy()
         if pressure != 0.0:
-            p_config.name = '{0}_{1:g}GPa'.format(configuration.name, pressure)
-        else:
-            p_config.name = configuration.name
+            p_config.info['name'] = '{0}_{1:g}GPa'.format(
+                configuration.info['name'], pressure)
         for temperature in get('md', 'temperature'):
             pt_config = p_config.copy()
-            pt_config.name = p_config.name
             rescale_factor = bulk_rescale_factor(species, temperature,
                                                  pressure)
             pt_config.set_cell(pt_config.cell*rescale_factor)
@@ -115,5 +113,10 @@ def md_generate(configuration, pre_minimise=False):
                                write_interval=write_interval,
                                equilibration_steps=equilibration_steps)
 
+add_option('ui', 'help', False, bool, "Print out help information for the "
+           "program, including available options.")
+
 if __name__ == '__main__':
+    if get('ui', 'help'):
+        format_defaults()
     sats_main()

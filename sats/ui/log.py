@@ -47,7 +47,7 @@ def _init_logging(verbosity=0):
     Setup the logging to terminal and sats.log file, with levels as required.
 
     Parameters
-    ---------
+    ----------
     verbosity : int
         Level of output to produce. 1 = debug level, 0 = info level,
         -1 = quiet, -2 = silent.

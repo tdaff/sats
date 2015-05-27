@@ -97,11 +97,11 @@ def molecular_dynamics(system, potential_str, temperature, total_steps=1100000,
     print(dynamical_system.atoms.velo.T)
 
     base_dir = os.getcwd()
-    run_path = '{0}_{1:g}/'.format(system.name, temperature)
+    run_path = '{0}_{1:g}/'.format(system.info['name'], temperature)
     os.mkdir(run_path)
     os.chdir(run_path)
 
-    trajectory = 'traj_{0}_{1:g}.xyz'.format(system.name, temperature)
+    trajectory = 'traj_{0}_{1:g}.xyz'.format(system.info['name'], temperature)
     out = AtomsWriter(trajectory)
 
     dynamical_system.atoms.calc_connect()
@@ -132,7 +132,7 @@ def molecular_dynamics(system, potential_str, temperature, total_steps=1100000,
                 out.write(dynamical_system.atoms)
                 sp_path = '{0:03d}'.format(structure_count)
                 write_filename = '{0}_{1:g}.{2:03d}'.format(
-                    system.name, temperature, structure_count)
+                    system.info['name'], temperature, structure_count)
                 os.mkdir(sp_path)
                 os.chdir(sp_path)
                 castep_write(dynamical_system.atoms,

@@ -18,4 +18,4 @@ if get('ui', 'help'):
     print(description)
     print("")
     print("\n".join(format_defaults()))
-    raise SystemExit
+#    raise SystemExit
