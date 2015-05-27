@@ -11,7 +11,7 @@ import sys
 
 import sats
 from sats.bulk.rescale import bulk_rescale_factor
-from sats.configurations import bulk
+from sats.configurations import bulk, surfaces
 from sats.core.dynamics import molecular_dynamics, relax_structure
 from sats.core.elements import Element
 from sats.core.io import castep_write
@@ -22,15 +22,20 @@ from sats.ui.options import add_option, get, format_defaults
 # Options that are referenced in the main sats part of the procedure.
 _valid_structures = [
     'bulk',  # bulk lattices
+    'surface',  # intermediate 2x2 surfaces
     'db', 'crw', 'tet', 'oct',  # interstitial
 ]
-add_option('structure', 'type', [], str, 'Type of structures to generate.',
+add_option('structure', 'type', [], str, "Type of structures to generate.",
            multiple=True, valid_values=_valid_structures)
 add_option('structure', 'lattice', ['bcc'], str,
-           'Base lattice type for the structure.', multiple=True,
+           "Base lattice type for the structure.", multiple=True,
            valid_values=['fcc', 'bcc', 'hcp', 'a15'])
+add_option('structure', 'surface', ['bcc100'], str,
+           "Surface structure to generate.", multiple=True,
+           valid_values=['bcc100', 'bcc110', 'bcc111', 'fcc100', 'fcc110',
+                         'fcc111', 'fcc211', 'hcp0001'])
 add_option('structure', 'db_direction', '111', str,
-           "Lattice direction along which to create a dumbbell interstitial")
+           "Lattice direction along which to create a dumbbell interstitial.")
 add_option('structure', 'species', 'W', str, "Chemical species identifier.")
 add_option('structure', 'min_atoms', 0, int, "Minimum number of atoms that "
            "the structure should contain.")
@@ -59,8 +64,14 @@ def sats_main():
                 # Lattice constants from the literature so we use
                 # them rather than the ones that the potential gives
                 md_generate(configuration, pre_minimise=False)
-
-
+        elif structure == 'surface':
+            for surface in get('structure', 'surface'):
+                configurations = surfaces.intermediate_surfaces(species, surface)
+                for idx, configuration in enumerate(configurations):
+                    configuration.info['name'] = '{0}_{1}'.format(surface, idx)
+                    castep_write(configuration, configuration.info['name'],
+                                 optimise=True, fix_lattice=False)
+                    md_generate(configuration, pre_minimise=False)
 
 add_option('md', 'potential', 'IP FS', str, "Potential function to use to "
            "calculate the forces during molecular dynamics.")
@@ -75,6 +86,8 @@ add_option('md', 'time_between_configurations', 1.0, float, "Time in "
            "picoseconds between writing out configurations.")
 add_option('sats', 'num_configs', 20, int, "Number of configurations to "
            "derive from each initial configuration.")
+add_option('structure', 'volume_rescale', [0.0], float, "Rescale the volume by "
+           "the given percentage", multiple=True)
 
 def md_generate(configuration, pre_minimise=False):
     """
@@ -105,21 +118,30 @@ def md_generate(configuration, pre_minimise=False):
         if pressure != 0.0:
             p_config.info['name'] = '{0}_{1:g}GPa'.format(
                 configuration.info['name'], pressure)
-        for temperature in get('md', 'temperature'):
-            pt_config = p_config.copy()
-            rescale_factor = bulk_rescale_factor(species, temperature,
-                                                 pressure)
-            pt_config.set_cell(pt_config.cell*rescale_factor)
-            molecular_dynamics(pt_config, potential, temperature,
-                               total_steps=total_steps, timestep=timestep,
-                               write_interval=write_interval,
-                               equilibration_steps=equilibration_steps)
+        for volume in get('structure', 'volume_rescale'):
+            pv_config = p_config.copy()
+            if volume != 0.0:
+                pv_config.info['name'] = '{0}_{1:g}pc'.format(
+                    pv_config.info['name'], volume)
+            for temperature in get('md', 'temperature'):
+                pvt_config = pv_config.copy()
+                rescale_factor = bulk_rescale_factor(species, temperature,
+                                                     pressure, volume)
+                pvt_config.set_cell(pvt_config.cell*rescale_factor)
+                full_name = '{0}_{1:g}K'.format(pvt_config.info['name'],
+                                                temperature)
+                castep_write(pvt_config, full_name, optimise=True,
+                             fix_lattice=True)
+                molecular_dynamics(pvt_config, potential, temperature,
+                                   total_steps=total_steps, timestep=timestep,
+                                   write_interval=write_interval,
+                                   equilibration_steps=equilibration_steps)
+
 
 add_option('ui', 'help', False, bool, "Print out help information for the "
            "program, including available options.")
 
-
-def help():
+def ui_help():
     """
     Print program help and exit.
     """
@@ -134,5 +156,6 @@ def help():
 
 if __name__ == '__main__':
     if get('ui', 'help'):
-        help()
-    sats_main()
+        ui_help()
+    else:
+        sats_main()

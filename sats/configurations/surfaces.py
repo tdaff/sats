@@ -7,11 +7,12 @@ Surfaces and atom-by-atom layers to create all steps.
 
 import ase.lattice.surface
 
+from sats.bulk.rescale import properties
 from sats.core.elements import Element
 
 
-def intermediate_surfaces(species, lattice_parameter, surface='bcc100',
-                          depth=12, vacuum=6):
+def intermediate_surfaces(species, surface='bcc100', config='2x2',
+                          lattice_parameter=None, depth=12, vacuum=6):
     """
     Generate five 2x2 surfaces with top and bottom atoms progressively removed.
     Produces structures with vacancies, steps and adatoms.
@@ -20,11 +21,15 @@ def intermediate_surfaces(species, lattice_parameter, surface='bcc100',
     ----------
     species : str or int
         Species used to create surface.
-    lattice_parameter : float
-        Crystal lattice parameter, in A.
     surface : str
-        Surface to create. Valid surfaces are bcc100, bcc110, bcc111, fcc100,
-        fcc110, fcc111, fcc211, hcp0001.
+        Surface to create. Valid surface combinations are bcc100, bcc110,
+        bcc111, fcc100, fcc110, fcc111, fcc211, hcp0001.
+    config : str
+        Configuration of intermediate surfaces to produce. Valid options are
+        1x1 and 2x2.
+    lattice_parameter : float, optional
+        Crystal lattice parameter, in A. If not given this is guessed from
+        internal values.
     depth : int, optional
         Number of layers in the surface with all adatoms removed. Flat surfaces
         will have depth+2 layers total.
@@ -34,14 +39,19 @@ def intermediate_surfaces(species, lattice_parameter, surface='bcc100',
     Returns
     -------
     surfaces : list of ase.atoms.Atoms
-        Five surfaces with the arrangement of occupied (X) and vacant (O)
-        sites on top, with an inversion for bottom sites:
+        If config is 1x1, a single surface is produced.
+        If config is 2x2, five surfaces with the arrangement of occupied
+        (X) and vacant (O) sites on top, with an inversion for bottom sites:
             XX  XX  OX  OX  OX  b
             XX  OX  OX  XO  OO  ^>a
     """
 
     species = Element(species)
     surface = surface.lower()
+    lattice = surface.strip('0123456780')
+
+    if lattice_parameter is None:
+        lattice_parameter = properties[species]['lattice_constant'][lattice]
 
     standard_surfaces = {
         'bcc100': ase.lattice.surface.bcc100,
@@ -57,6 +67,8 @@ def intermediate_surfaces(species, lattice_parameter, surface='bcc100',
     if surface in standard_surfaces:
         flat_surface = standard_surfaces[surface](
             species, size=(2, 2, depth), a=lattice_parameter, vacuum=vacuum)
+        # This centres around 0, which is better for quippy
+        flat_surface.translate((0, 0, -flat_surface.get_center_of_mass()[2]))
     else:
         raise NotImplementedError('Cannot create {} surfaces'.format(surface))
 
