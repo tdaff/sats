@@ -137,6 +137,10 @@ def format_defaults(width=80):
 
     :return:
     """
+    defaults = []
     for section in sorted(DEFAULTS):
-        print(section)
-    return ["", ""]
+        for option in sorted(DEFAULTS[section]):
+            defaults.append("{0} {1} {2}".format(section, option,
+                                                 DEFAULTS[section][option]))
+
+    return defaults

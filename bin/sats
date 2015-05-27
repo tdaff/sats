@@ -7,6 +7,8 @@ Frontend to the sats package.
 
 """
 
+import sys
+
 import sats
 from sats.bulk.rescale import bulk_rescale_factor
 from sats.configurations import bulk
@@ -116,7 +118,21 @@ def md_generate(configuration, pre_minimise=False):
 add_option('ui', 'help', False, bool, "Print out help information for the "
            "program, including available options.")
 
+
+def help():
+    """
+    Print program help and exit.
+    """
+    description = "sats structure generation tool. Generate some structures"
+
+    print("usage: {0} [section.option=value ...]".format(sys.argv[0]))
+    print("")
+    print(description)
+    print("")
+    print("\n".join(format_defaults()))
+    raise SystemExit
+
 if __name__ == '__main__':
     if get('ui', 'help'):
-        format_defaults()
+        help()
     sats_main()
