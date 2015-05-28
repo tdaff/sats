@@ -11,7 +11,7 @@ import sys
 
 import sats
 from sats.bulk.rescale import bulk_rescale_factor
-from sats.configurations import bulk, surfaces
+from sats.configurations import bulk, surfaces, interstitial
 from sats.core.dynamics import molecular_dynamics, relax_structure
 from sats.core.elements import Element
 from sats.core.io import castep_write
@@ -23,7 +23,7 @@ from sats.ui.options import add_option, get, format_defaults
 _valid_structures = [
     'bulk',  # bulk lattices
     'surface',  # intermediate 2x2 surfaces
-    'db', 'crw', 'tet', 'oct',  # interstitial
+    'interstitial',
 ]
 add_option('structure', 'type', [], str, "Type of structures to generate.",
            multiple=True, valid_values=_valid_structures)
@@ -34,8 +34,12 @@ add_option('structure', 'surface', ['bcc100'], str,
            "Surface structure to generate.", multiple=True,
            valid_values=['bcc100', 'bcc110', 'bcc111', 'fcc100', 'fcc110',
                          'fcc111', 'fcc211', 'hcp0001'])
-add_option('structure', 'db_direction', '111', str,
-           "Lattice direction along which to create a dumbbell interstitial.")
+add_option('structure', 'interstitial', ['db'], str,
+           "Interstitial defect to create. Usually work with bcc and fcc.",
+           multiple=True, valid_values=['db', 'crw', 'tet', 'oct'])
+add_option('structure', 'db_direction', ['111'], str,
+           "Lattice direction along which to create a dumbbell interstitial.",
+           multiple=True)
 add_option('structure', 'species', 'W', str, "Chemical species identifier.")
 add_option('structure', 'min_atoms', 0, int, "Minimum number of atoms that "
            "the structure should contain.")
@@ -54,6 +58,7 @@ def sats_main():
     for structure in structures:
         if structure == 'bulk':
             lattices = get('structure', 'lattice')
+            info("Got lattices: {0}.".format(lattices))
             for lattice in lattices:
                 configuration = bulk.bulk(species, lattice, min_atoms)
                 configuration.info['name'] = '{0}_bulk'.format(lattice)
@@ -65,13 +70,38 @@ def sats_main():
                 # them rather than the ones that the potential gives
                 md_generate(configuration, pre_minimise=False)
         elif structure == 'surface':
-            for surface in get('structure', 'surface'):
+            run_surfaces = get('structure', 'surface')
+            info("Got surfaces {0}.".format(run_surfaces))
+            for surface in run_surfaces:
                 configurations = surfaces.intermediate_surfaces(species, surface)
                 for idx, configuration in enumerate(configurations):
                     configuration.info['name'] = '{0}_{1}'.format(surface, idx)
+                    info("Using structure {0}."
+                         "".format(configuration.info['name']))
                     castep_write(configuration, configuration.info['name'],
                                  optimise=True, fix_lattice=False)
                     md_generate(configuration, pre_minimise=False)
+        elif structure == 'interstitial':
+            interstital_ids = []
+            for lattice in get('structure', 'lattice'):
+                for defect in get('structure', 'interstitial'):
+                    defect_id = '{0}_{1}'.format(lattice, defect)
+                    if defect == 'db':
+                        for db in get('structure', 'db_direction'):
+                            interstital_ids.append('{0}_{1}'.format(defect_id,
+                                                                    db))
+                    else:
+                        interstital_ids.append(defect_id)
+            info("Got interstitial defects {0}.".format(interstital_ids))
+            for defect in interstital_ids:
+                configuration = interstitial.interstitial(defect, species,
+                                                          min_atoms=min_atoms)
+                configuration.info['name'] = defect
+                info("Using structure {0}.".format(configuration.info['name']))
+                castep_write(configuration, configuration.info['name'],
+                             optimise=True, fix_lattice=False)
+                md_generate(configuration, pre_minimise=True)
+
 
 add_option('md', 'potential', 'IP FS', str, "Potential function to use to "
            "calculate the forces during molecular dynamics.")
