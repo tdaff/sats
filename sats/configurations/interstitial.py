@@ -1,7 +1,7 @@
 """
-structures.py
+interstitial.py
 
-Helpers to create different starting environments.
+Helpers to create different structures with interstitial defects.
 
 """
 
@@ -22,7 +22,7 @@ def interstitial(interstitial_id, species, interstitial_species=None,
     Parameters
     ----------
     interstitial_id : str
-        String representing the interstital to be created in the form:
+        String representing the interstitial to be created in the form:
         {lattice}_{interstitial}[_{param}].
     species : int or str
         Identity of species used to construct the lattice.

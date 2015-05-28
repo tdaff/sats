@@ -11,7 +11,7 @@ import sys
 
 import sats
 from sats.bulk.rescale import bulk_rescale_factor
-from sats.configurations import bulk, surfaces, interstitial
+from sats.configurations import bulk, surfaces, interstitial, vacancy
 from sats.core.dynamics import molecular_dynamics, relax_structure
 from sats.core.elements import Element
 from sats.core.io import castep_write
@@ -23,7 +23,8 @@ from sats.ui.options import add_option, get, format_defaults
 _valid_structures = [
     'bulk',  # bulk lattices
     'surface',  # intermediate 2x2 surfaces
-    'interstitial',
+    'interstitial',  # Various interstitial constructs
+    'vacancy',
 ]
 add_option('structure', 'type', [], str, "Type of structures to generate.",
            multiple=True, valid_values=_valid_structures)
@@ -40,6 +41,8 @@ add_option('structure', 'interstitial', ['db'], str,
 add_option('structure', 'db_direction', ['111'], str,
            "Lattice direction along which to create a dumbbell interstitial.",
            multiple=True)
+add_option('structure', 'vacancy_length', [1], int, "Number of atoms to "
+           "remove in a row of vacancies.", multiple=True)
 add_option('structure', 'species', 'W', str, "Chemical species identifier.")
 add_option('structure', 'min_atoms', 0, int, "Minimum number of atoms that "
            "the structure should contain.")
@@ -101,6 +104,23 @@ def sats_main():
                 castep_write(configuration, configuration.info['name'],
                              optimise=True, fix_lattice=False)
                 md_generate(configuration, pre_minimise=True)
+        elif structure == 'vacancy':
+            lattices = get('structure', 'lattice')
+            info("Got lattices: {0}.".format(lattices))
+            for lattice in lattices:
+                rows = get('structure', 'vacancy_length')
+                info("Got row lengths {0}.".format(rows))
+                for row in rows:
+                    configuration = vacancy.vacancy(lattice, species, row,
+                                                    min_atoms=min_atoms)
+                    configuration.info['name'] = '{0}_vac{1}'.format(lattice, row)
+                    info("Using structure {0}".format(configuration.info['name']))
+                    # Write the as-generated structure
+                    castep_write(configuration, configuration.info['name'],
+                                 optimise=True, fix_lattice=False)
+                    # Lattice constants from the literature so we use
+                    # them rather than the ones that the potential gives
+                    md_generate(configuration, pre_minimise=True)
 
 
 add_option('md', 'potential', 'IP FS', str, "Potential function to use to "
