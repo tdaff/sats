@@ -126,6 +126,8 @@ def get(section, option=None):
         except TypeError:
             # Make a list of a single value
             value = [parser_function(value)]
+    else:
+        value = parser_function(value)
 
     return value
 
