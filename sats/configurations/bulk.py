@@ -53,6 +53,7 @@ def bulk(species, lattice, min_atoms=0, max_atoms=None):
     n_cells = int(ceil((min_atoms/len(atoms))**(1/3))) or 1
 
     super_atoms = atoms.repeat((n_cells, n_cells, n_cells))
+    super_atoms.info['lattice_constant'] = lattice_constant
 
     return super_atoms
 
