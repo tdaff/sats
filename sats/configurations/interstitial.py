@@ -14,7 +14,7 @@ from sats.configurations.bulk import bulk
 
 
 def interstitial(interstitial_id, species, interstitial_species=None,
-                 min_atoms=0):
+                 min_atoms=0, supercell=None):
     """
     Helper function to create an interstital based on a string representation
     such as bcc_oct fcc_db_111.
@@ -31,6 +31,9 @@ def interstitial(interstitial_id, species, interstitial_species=None,
         self-interstitial.
     min_atoms : int, optional
         Construct a supercell to include at least this many atoms.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
 
     Returns
     -------
@@ -41,22 +44,23 @@ def interstitial(interstitial_id, species, interstitial_species=None,
     irepr = interstitial_id.split('_')
     if 'db' in irepr:
         return interstitial_dumbbell(irepr[0], species, irepr[2],
-                                     interstitial_species, min_atoms)
+                                     interstitial_species, min_atoms, supercell)
     elif 'crw' in irepr:
         return interstitial_crowdion(irepr[0], species, interstitial_species,
-                                     min_atoms)
+                                     min_atoms, supercell)
     elif 'tet' in irepr:
         return interstitial_tetrahedral(irepr[0], species, interstitial_species,
-                                        min_atoms)
+                                        min_atoms, supercell)
     elif 'oct':
         return interstitial_octahedral(irepr[0], species, interstitial_species,
-                                       min_atoms)
+                                       min_atoms, supercell)
     else:
         raise NotImplementedError("Unknown interstitial {0}.".format(irepr))
 
 
 def interstitial_dumbbell(lattice, species, direction='111',
-                          interstitial_species=None, min_atoms=0, index=-1):
+                          interstitial_species=None, min_atoms=0,
+                          supercell=None, index=-1):
     """
     Create a crystal structure, such as bcc or fcc, with a dumbbell
     interstitial atom along the given lattice direction.
@@ -75,6 +79,9 @@ def interstitial_dumbbell(lattice, species, direction='111',
         self-interstitial.
     min_atoms : int, optional
         Construct a supercell to include at least this many atoms.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
     index : int, optional
         Index of atom with which to create the dumbbell. Added atom is always
         at the end.
@@ -91,7 +98,7 @@ def interstitial_dumbbell(lattice, species, direction='111',
     else:
         interstitial_species = Element(interstitial_species)
 
-    ibulk = bulk(species, lattice, min_atoms)
+    ibulk = bulk(species, lattice, min_atoms, supercell)
     lattice_constant = ibulk.info['lattice_constant']
 
     if index < 0:
@@ -111,7 +118,7 @@ def interstitial_dumbbell(lattice, species, direction='111',
 
 
 def interstitial_crowdion(lattice, species, interstitial_species=None,
-                          min_atoms=0, index=-1):
+                          min_atoms=0, supercell=None, index=-1):
     """
     Create a crystal structure with a crowdion interstitial atom between
     two close packed atoms.
@@ -128,6 +135,9 @@ def interstitial_crowdion(lattice, species, interstitial_species=None,
         self-interstitial.
     min_atoms : int, optional
         Construct a supercell to include at least this many atoms.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
     index : int, optional
         Index of nearest lattice atom to the crowdion. Additional atom is
         placed along the <111> direction for bcc and <110> direction for fcc.
@@ -144,7 +154,7 @@ def interstitial_crowdion(lattice, species, interstitial_species=None,
     else:
         interstitial_species = Element(interstitial_species)
 
-    ibulk = bulk(species, lattice, min_atoms)
+    ibulk = bulk(species, lattice, min_atoms, supercell)
     lattice_constant = ibulk.info['lattice_constant']
 
     if lattice.lower() == 'bcc':
@@ -167,7 +177,7 @@ def interstitial_crowdion(lattice, species, interstitial_species=None,
 
 
 def interstitial_tetrahedral(lattice, species, interstitial_species=None,
-                             min_atoms=0, index=-1):
+                             min_atoms=0, supercell=None, index=-1):
     """
     Create a crystal structure with a tetrahedral interstitial atom between
     four atoms.
@@ -184,6 +194,9 @@ def interstitial_tetrahedral(lattice, species, interstitial_species=None,
         self-interstitial.
     min_atoms : int, optional
         Construct a supercell to include at least this many atoms.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
     index : int, optional
         Index of nearest lattice atom to the interstitial. Additional atom is
         placed along the <210> direction in bcc and <221> in fcc.
@@ -200,7 +213,7 @@ def interstitial_tetrahedral(lattice, species, interstitial_species=None,
     else:
         interstitial_species = Element(interstitial_species)
 
-    ibulk = bulk(species, lattice, min_atoms)
+    ibulk = bulk(species, lattice, min_atoms, supercell)
     lattice_constant = ibulk.info['lattice_constant']
 
     if lattice.lower() == 'bcc':
@@ -224,7 +237,7 @@ def interstitial_tetrahedral(lattice, species, interstitial_species=None,
 
 
 def interstitial_octahedral(lattice, species, interstitial_species=None,
-                            min_atoms=0, index=-1):
+                            min_atoms=0, supercell=None, index=-1):
     """
     Create a crystal structure with an octahedral interstitial atom between
     six atoms.
@@ -241,6 +254,9 @@ def interstitial_octahedral(lattice, species, interstitial_species=None,
         self-interstitial.
     min_atoms : int, optional
         Construct a supercell to include at least this many atoms.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
     index : int, optional
         Index of nearest lattice atom to the interstitial. Additional atom is
         placed along the <001> direction.
@@ -257,7 +273,7 @@ def interstitial_octahedral(lattice, species, interstitial_species=None,
     else:
         interstitial_species = Element(interstitial_species)
 
-    ibulk = bulk(species, lattice, min_atoms)
+    ibulk = bulk(species, lattice, min_atoms, supercell)
     lattice_constant = ibulk.info['lattice_constant']
 
     if lattice.lower() == 'bcc':

@@ -7,7 +7,7 @@ inferred from the defaults.
 """
 
 import re
-from ConfigParser import SafeConfigParser, NoOptionError, NoSectionError
+from ConfigParser import SafeConfigParser
 from collections import OrderedDict, namedtuple
 
 from sats.ui import args

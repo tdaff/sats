@@ -14,7 +14,7 @@ from ase.lattice import bulk as ase_bulk
 from sats.bulk.rescale import properties
 
 
-def bulk(species, lattice, min_atoms=0, max_atoms=None):
+def bulk(species, lattice, min_atoms=0, supercell=None):
     """
     Helper to generate a generic bulk configuration.
 
@@ -24,11 +24,12 @@ def bulk(species, lattice, min_atoms=0, max_atoms=None):
         Atomic species used to generate the structures.
     lattice : str
         Bulk lattice type to generate.
-    min_atoms : int
+    min_atoms : int, optional
         Minimum number of atoms to include in a supercell of the
-        bulk.
-    max_atoms : int, optional
-        Not implemented.
+        bulk. If not specified, you get a unit cell.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
 
     Returns
     -------
@@ -52,7 +53,12 @@ def bulk(species, lattice, min_atoms=0, max_atoms=None):
     # TODO: non cubic supercells
     n_cells = int(ceil((min_atoms/len(atoms))**(1/3))) or 1
 
-    super_atoms = atoms.repeat((n_cells, n_cells, n_cells))
+    if supercell is None:
+        super_atoms = atoms.repeat((n_cells, n_cells, n_cells))
+    else:
+        super_atoms = atoms.repeat(supercell)
+
+    # This ensures that we can find the lattice constant later on
     super_atoms.info['lattice_constant'] = lattice_constant
 
     return super_atoms
