@@ -24,7 +24,13 @@ BASE_PARAM = {'task': 'SinglePoint',
               'elec_dump_file': 'NULL',
               'num_dump_cycles': '0',
               'backup_interval': '0',
-              'write_checkpoint': 'NONE'}
+              'write_checkpoint': 'NONE',
+              'popn_calculate': 'false',
+              'page_wvfns': '0',
+              'write_bib': 'false',
+              'bs_write_eigenvalues': 'false',
+              'write_cell_structure': 'true',
+              'write_cif_structure': 'true'}
 
 
 def castep_write(atoms, filename='default.cell', optimise=False,

@@ -11,6 +11,7 @@ from ConfigParser import SafeConfigParser
 from collections import OrderedDict, namedtuple
 
 from sats.ui import args
+from sats.ui.log import info, debug
 
 Option = namedtuple('Option', ['parser_function', 'default_value', 'doc',
                                'multiple', 'valid_values'])
@@ -19,6 +20,8 @@ sats_ini = SafeConfigParser()
 sats_ini.read('sats.ini')
 DEFAULTS = OrderedDict()
 
+# Options that have been called before
+_seen = []
 
 def add_option(section, option, default_value, parser_function, doc,
                multiple=False, valid_values=None):
@@ -67,6 +70,8 @@ def add_option(section, option, default_value, parser_function, doc,
                                        multiple=multiple,
                                        valid_values=valid_values)
 
+    debug("New option {0}.".format(DEFAULTS[section][option]))
+
     # Return a function that does nothing so we can use this as a decorator
     def wrapper(func):
         """Do nothing but return the original function."""
@@ -107,10 +112,13 @@ def get(section, option=None):
 
     if args.get(section, option) is not None:
         value = args.get(section, option)
+        where = 'arguments'
     elif sats_ini.has_section(option) and sats_ini.has_option(section, option):
         value = sats_ini.get(section, option)
+        where = 'sats ini'
     else:
         value = DEFAULTS[section][option].default_value
+        where = 'defaults'
 
     # Parse through options
     if signature.multiple:
@@ -128,6 +136,12 @@ def get(section, option=None):
             value = [parser_function(value)]
     else:
         value = parser_function(value)
+
+    # Only announce the first time we see an option
+    if (section, option) not in _seen:
+        info("Option {0}.{1} = {2} found in {3}.".format(section, option,
+                                                         value, where))
+        _seen.append((option, section))
 
     return value
 

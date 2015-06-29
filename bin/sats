@@ -22,6 +22,7 @@ from sats.ui.options import add_option, get, format_defaults
 # Options that are referenced in the main sats part of the procedure.
 _valid_structures = [
     'bulk',  # bulk lattices
+    'liquid',  # bulk at liquid volumes, still needs high temperatures
     'surface',  # intermediate 2x2 surfaces
     'interstitial',  # Various interstitial constructs
     'vacancy',
@@ -53,6 +54,7 @@ def sats_main():
     """
 
     info("Welcome to sats_main version {0}.".format(sats.__version__))
+    info("Called with arguments {0}.".format(sys.argv))
     structures = get('structure', 'type')
     species = Element(get('structure', 'species'))
     min_atoms = get('structure', 'min_atoms')
@@ -72,6 +74,16 @@ def sats_main():
                 # Lattice constants from the literature so we use
                 # them rather than the ones that the potential gives
                 md_generate(configuration, pre_minimise=False)
+        elif structure == 'liquid':
+            configuration = bulk.liquid(species, min_atoms)
+            configuration.info['name'] = 'liquid'.format(species)
+            info("Using structure {0}".format(configuration.info['name']))
+            # Write the as-generated structure
+            castep_write(configuration, configuration.info['name'],
+                         optimise=False, fix_lattice=True)
+            # Lattice constants from the literature so we use
+            # them rather than the ones that the potential gives
+            md_generate(configuration, pre_minimise=False)
         elif structure == 'surface':
             run_surfaces = get('structure', 'surface')
             info("Got surfaces {0}.".format(run_surfaces))
@@ -130,11 +142,11 @@ add_option('md', 'temperature', [300.0], float, "Temperatures in Kelvin to "
 add_option('md', 'pressure', [0.0], float, "Pressure points in GPa to run "
            "MD generation routines at.", multiple=True)
 add_option('md', 'timestep', 1.0, float, "Molecular dynamics timestep in fs.")
-add_option('md', 'equilibration_time', 10.0, float, "Time in picoseconds to "
+add_option('md', 'equilibration_time', 100.0, float, "Time in picoseconds to "
            "equilibrate the system before generating configurations.")
-add_option('md', 'time_between_configurations', 1.0, float, "Time in "
+add_option('md', 'time_between_configurations', 10.0, float, "Time in "
            "picoseconds between writing out configurations.")
-add_option('sats', 'num_configs', 20, int, "Number of configurations to "
+add_option('sats', 'num_configs', 10, int, "Number of configurations to "
            "derive from each initial configuration.")
 add_option('structure', 'volume_rescale', [0.0], float, "Rescale the volume by "
            "the given percentage", multiple=True)
@@ -177,6 +189,8 @@ def md_generate(configuration, pre_minimise=False):
                 pvt_config = pv_config.copy()
                 rescale_factor = bulk_rescale_factor(species, temperature,
                                                      pressure, volume)
+                info("State point volume scale factor: {0}.".format(
+                    rescale_factor))
                 pvt_config.set_cell(pvt_config.cell*rescale_factor)
                 full_name = '{0}_{1:g}K'.format(pvt_config.info['name'],
                                                 temperature)
