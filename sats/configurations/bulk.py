@@ -12,6 +12,51 @@ from ase import Atoms
 from ase.lattice import bulk as ase_bulk
 
 from sats.bulk.rescale import properties
+from sats.ui.log import info
+
+
+def liquid(species, min_atoms=0, supercell=None):
+    """
+    Generic bcc solid with liquid volume scaling.
+
+    Parameters
+    ----------
+    species : str or sats.core.elements.Element
+        Atomic species used to generate the structures.
+    min_atoms : int, optional
+        Minimum number of atoms to include in a supercell of the
+        bulk. If not specified, you get a unit cell.
+    supercell : (int, int, int), optional
+        Request a specific supercell of bulk material. If not given,
+        max_atoms will be used instead to create a cubic cell.
+
+    Returns
+    -------
+    liquid : ase.Atoms
+        Atoms with liquid equivalent volume (scaled to 0K).
+
+    """
+
+    lattice_constant = properties[species]['lattice_constant']['liquid']
+
+    atoms = ase_bulk(species, 'bcc', a=lattice_constant,
+                     orthorhombic=True)
+
+    # TODO: non cubic supercells
+    n_cells = int(ceil((min_atoms/len(atoms))**(1/3))) or 1
+
+    if supercell is None:
+        info("Generated supercell of {0}x{0}x{0}.".format(n_cells))
+        super_atoms = atoms.repeat((n_cells, n_cells, n_cells))
+    else:
+        info("Generated supercell of {0}.".format(supercell))
+        super_atoms = atoms.repeat(supercell)
+
+    info("Structure contains {0} atoms.".format(len(super_atoms)))
+    # This ensures that we can find the lattice constant later on
+    super_atoms.info['lattice_constant'] = lattice_constant
+
+    return super_atoms
 
 
 def bulk(species, lattice, min_atoms=0, supercell=None):
@@ -54,10 +99,13 @@ def bulk(species, lattice, min_atoms=0, supercell=None):
     n_cells = int(ceil((min_atoms/len(atoms))**(1/3))) or 1
 
     if supercell is None:
+        info("Generated supercell of {0}x{0}x{0}.".format(n_cells))
         super_atoms = atoms.repeat((n_cells, n_cells, n_cells))
     else:
+        info("Generated supercell of {0}.".format(supercell))
         super_atoms = atoms.repeat(supercell)
 
+    info("Structure contains {0} atoms.".format(len(super_atoms)))
     # This ensures that we can find the lattice constant later on
     super_atoms.info['lattice_constant'] = lattice_constant
 

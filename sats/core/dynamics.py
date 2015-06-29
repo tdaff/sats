@@ -18,13 +18,15 @@ from sats.ui.log import info, debug
 
 # CAPTURE quippy output
 class Capturing(list):
+    """Capture normal stdout and put in a pipe."""
     def __init__(self, debug_on_exit=False, *args, **kwargs):
         self.debug_on_exit = debug_on_exit
         super(Capturing, self).__init__(*args, **kwargs)
 
     def __enter__(self):
-        # capture normal stdout and put in a pipe
-        self.stdout_fileno = sys.stdout.fileno()
+        """Capture normal stdout and put in a pipe."""
+        # Use __stdout__ as this works for IPython too
+        self.stdout_fileno = sys.__stdout__.fileno()
         self.stdout_save = os.dup(self.stdout_fileno)
         self.pipe_in, self.pipe_out = os.pipe()
         os.dup2(self.pipe_out, self.stdout_fileno)

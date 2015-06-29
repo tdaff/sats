@@ -13,6 +13,7 @@ from __future__ import print_function
 __all__ = ['debug', 'info', 'warning', 'error', 'critical']
 
 import copy
+import os
 import logging
 import sys
 
@@ -102,7 +103,7 @@ def _init_logging(verbosity=0):
     # add the handler to the root logger
     sats_logger.addHandler(console)
 
-_init_logging(1)
+_init_logging(os.getenv("SATS_VERBOSITY", 0))
 
 _sats_logger = logging.getLogger('sats')
 debug = _sats_logger.debug

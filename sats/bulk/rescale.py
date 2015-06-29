@@ -15,7 +15,9 @@ properties = {
             'bcc': 3.18,
             'fcc': 3.95,
             'hcp': 2.79,
-            'a15': 5.06
+            'a15': 5.06,
+            # This is melting density extrapolated to 0 by thermal expansion
+            'liquid': ((2/(6.023E23*((17.6/1e24)/183.84)))**(1.0/3.0)/1.016997)
         },
         'thermal_expansion': 4.6e-6,
         'thermal_expansion_ref': "10.6028/nbsscipaper.203",
@@ -31,7 +33,8 @@ properties = {
             'bcc': 2.87,
             'fcc': 3.45,
             'hcp': 2.46,
-            'a15': 4.48
+            'a15': 4.48,
+            'liquid': ((2/(6.023E23*((6.98/1e24)/55.845)))**(1.0/3.0)/1.026216)
         },
         'thermal_expansion': 14.5e-6,
         'thermal_expansion_ref': "10.1098/rspa.1955.0102",
