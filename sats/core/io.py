@@ -8,7 +8,7 @@ File reading and writing utilities.
 from quippy import Atoms
 from quippy.castep import CastepCell, CastepParam
 
-BASE_CELL = {'kpoint_mp_spacing': 0.015,
+BASE_CELL = {'kpoint_mp_spacing': 0.03,
              'SPECIES_POT': ['W /work/e89/e89/tdd20/Tungsten/W_OTF.usp']}
 
 BASE_PARAM = {'task': 'SinglePoint',

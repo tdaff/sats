@@ -191,7 +191,8 @@ def md_generate(configuration, pre_minimise=False):
                                                      pressure, volume)
                 info("State point volume scale factor: {0}.".format(
                     rescale_factor))
-                pvt_config.set_cell(pvt_config.cell*rescale_factor)
+                pvt_config.set_cell(pvt_config.cell*rescale_factor,
+                                    scale_atoms=True)
                 full_name = '{0}_{1:g}K'.format(pvt_config.info['name'],
                                                 temperature)
                 castep_write(pvt_config, full_name, optimise=True,
