@@ -88,7 +88,7 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
 
 def molecular_dynamics(system, potential, temperature, total_steps=1100000,
                        timestep=1.0, connect_interval=200, write_interval=20000,
-                       equilibration_steps=100000):
+                       equilibration_steps=100000, out_of_plane=None):
     """
     Run very simple molecular dynamics to generate some configurations. Writes
     configurations out as xyz and CASTEP files.
@@ -105,8 +105,10 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
     dynamical_system = DynamicalSystem(system)
     with Capturing(debug_on_exit=True):
         dynamical_system.rescale_velo(temperature)
-    # Stop things moving vertically in the cell
-    dynamical_system.atoms.velo[3, :] = 0
+
+    if out_of_plane is not None:
+        # Stop things moving vertically in the cell
+        dynamical_system.atoms.velo[3, :] = 0
 
     base_dir = os.getcwd()
     run_path = '{0}_{1:g}/'.format(system.info['name'], temperature)

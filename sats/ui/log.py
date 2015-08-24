@@ -43,7 +43,7 @@ class ColouredConsoleHandler(logging.StreamHandler):
         logging.StreamHandler.emit(self, myrecord)
 
 
-def _init_logging(verbosity=0):
+def _init_logging(verbosity=0, log_filename=None):
     """
     Setup the logging to terminal and sats.log file, with levels as required.
 
@@ -67,7 +67,6 @@ def _init_logging(verbosity=0):
 
     # Always at least INFO in .flog
     file_level = logging.INFO
-    log_filename = 'sats.log'
 
     if verbosity <= -2:
         stdout_level = logging.CRITICAL
@@ -79,14 +78,16 @@ def _init_logging(verbosity=0):
     else:
         stdout_level = logging.INFO
 
-    # Easier to do simple file configuration then add the stdout
-    file_handler = logging.FileHandler(log_filename)
-    file_handler.setLevel(file_level)
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s <%(funcName)s> '
-                                  '%(message)s',
-                                  datefmt='%Y%m%d %H:%M:%S')
-    file_handler.setFormatter(formatter)
-    sats_logger.addHandler(file_handler)
+    # add the file handler only if a name is given
+    if log_filename is not None:
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setLevel(file_level)
+        formatter = logging.Formatter('[%(asctime)s] %(levelname)s '
+                                      '<%(module)s.%(funcName)s> '
+                                      '%(message)s',
+                                      datefmt='%Y%m%d %H:%M:%S')
+        file_handler.setFormatter(formatter)
+        sats_logger.addHandler(file_handler)
 
     # Make these uniform widths
     logging.addLevelName(10, '--')
@@ -103,7 +104,8 @@ def _init_logging(verbosity=0):
     # add the handler to the root logger
     sats_logger.addHandler(console)
 
-_init_logging(os.getenv("SATS_VERBOSITY", 0))
+_init_logging(os.getenv("SATS_VERBOSITY", 0),
+              os.getenv("SATS_LOG", None))
 
 _sats_logger = logging.getLogger('sats')
 debug = _sats_logger.debug
