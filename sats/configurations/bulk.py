@@ -59,7 +59,7 @@ def liquid(species, min_atoms=0, supercell=None):
     return super_atoms
 
 
-def bulk(species, lattice, min_atoms=0, supercell=None):
+def bulk(species, lattice, min_atoms=0, supercell=None, lattice_constant=None):
     """
     Helper to generate a generic bulk configuration.
 
@@ -75,6 +75,9 @@ def bulk(species, lattice, min_atoms=0, supercell=None):
     supercell : (int, int, int), optional
         Request a specific supercell of bulk material. If not given,
         max_atoms will be used instead to create a cubic cell.
+    lattice_constant : float, optional
+        Manually set the lattice constant, rather than using a lookup
+        to find the value.
 
     Returns
     -------
@@ -82,7 +85,8 @@ def bulk(species, lattice, min_atoms=0, supercell=None):
         Atoms in the desired lattice.
     """
 
-    lattice_constant = properties[species]['lattice_constant'][lattice]
+    if lattice_constant is None:
+        lattice_constant = properties[species]['lattice_constant'][lattice]
 
     if lattice == 'a15':
         atoms = a15(lattice_constant, species)
@@ -110,6 +114,40 @@ def bulk(species, lattice, min_atoms=0, supercell=None):
     super_atoms.info['lattice_constant'] = lattice_constant
 
     return super_atoms
+
+
+def primitive(species, lattice, lattice_constant=None):
+    """
+    Create the primitive unit cell of the given lattice.
+
+    Parameters
+    ----------
+    species : str or sats.core.elements.Element
+        Atomic species used to generate the structure.
+    lattice : str
+        Lattice type to generate.
+
+    Returns
+    -------
+    bulk : ase.Atoms
+        A primitive cell of the lattice.
+
+    """
+
+    if lattice_constant is None:
+        lattice_constant = properties[species]['lattice_constant'][lattice]
+
+    if lattice == 'a15':
+        atoms = a15(lattice_constant, species)
+    else:
+        atoms = ase_bulk(species, lattice, a=lattice_constant,
+                         orthorhombic=False)
+
+    # This ensures that we can find the lattice constant later on
+    atoms.info['lattice_constant'] = lattice_constant
+
+    return atoms
+
 
 
 def a15(lattice_constant, species_A, species_B=None):

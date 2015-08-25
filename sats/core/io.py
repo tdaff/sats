@@ -34,11 +34,15 @@ BASE_PARAM = {'task': 'SinglePoint',
 
 
 def castep_write(atoms, filename='default.cell', optimise=False,
-                 fix_lattice=False):
+                 fix_lattice=False, kpoint_spacing=0.03):
     """Write atoms a castep cell file and param file."""
 
     atoms = Atoms(atoms)
     local_cell = BASE_CELL.copy()
+
+    # Set some extra parameters
+    local_cell['kpoint_mp_spacing'] = kpoint_spacing
+
     if fix_lattice:
         local_cell['fix_all_cell'] = 'true'
 

@@ -69,17 +69,21 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
     """
     info("Inside minimiser.")
 
-    system = Atoms(system)
+    qsystem = Atoms(system)
 
     if not isinstance(potential, Potential):
         potential = Potential(potential)
-    system.set_calculator(potential)
+    qsystem.set_calculator(potential)
 
-    minimiser = Minim(system, relax_positions=relax_positions,
+    minimiser = Minim(qsystem, relax_positions=relax_positions,
                       relax_cell=relax_cell)
 
     with Capturing(debug_on_exit=True):
         minimiser.run()
+
+    system.set_cell(qsystem.cell)
+    system.set_positions(qsystem.positions)
+    system.energy = qsystem.get_potential_energy()
 
     info("Minimiser done.")
 
