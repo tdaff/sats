@@ -13,6 +13,7 @@ import sats
 from sats.bulk.rescale import bulk_rescale_factor
 from sats.configurations import bulk, surfaces, interstitial, vacancy
 from sats.core.dynamics import molecular_dynamics, relax_structure
+from sats.core.slice_sample import slice_sample
 from sats.core.elements import Element
 from sats.core.io import castep_write
 from sats.ui.log import info, debug
@@ -21,6 +22,7 @@ from sats.ui.options import add_option, get, format_defaults
 
 # Options that are referenced in the main sats part of the procedure.
 _valid_structures = [
+    'primitive',  # primitive cells, for stresses
     'bulk',  # bulk lattices
     'liquid',  # bulk at liquid volumes, still needs high temperatures
     'surface',  # intermediate 2x2 surfaces
@@ -31,7 +33,7 @@ add_option('structure', 'type', [], str, "Type of structures to generate.",
            multiple=True, valid_values=_valid_structures)
 add_option('structure', 'lattice', ['bcc'], str,
            "Base lattice type for the structure.", multiple=True,
-           valid_values=['fcc', 'bcc', 'hcp', 'a15'])
+           valid_values=['fcc', 'bcc', 'hcp', 'a15', 'sc', 'diamond'])
 add_option('structure', 'surface', ['bcc100'], str,
            "Surface structure to generate.", multiple=True,
            valid_values=['bcc100', 'bcc110', 'bcc111', 'fcc100', 'fcc110',
@@ -48,6 +50,7 @@ add_option('structure', 'species', 'W', str, "Chemical species identifier.")
 add_option('structure', 'min_atoms', 0, int, "Minimum number of atoms that "
            "the structure should contain.")
 
+
 def sats_main():
     """
     Main sats procedure. All the logic goes in here.
@@ -61,6 +64,21 @@ def sats_main():
     info("Got structures: {0}.".format(", ".join(structures)))
 
     for structure in structures:
+        if structure == 'primitive':
+            lattices = get('structure', 'lattice')
+            info("Got lattices: {0}.".format(lattices))
+            for lattice in lattices:
+                configuration = bulk.primitive(species, lattice)
+                configuration.info['name'] = '{0}_primitive'.format(lattice)
+                info("Using structure {0}".format(configuration.info['name']))
+                # Write the as-generated structure
+                # This one needs higher accuracy for the virials
+                castep_write(configuration, configuration.info['name'],
+                             optimise=True, fix_lattice=False,
+                             kpoint_spacing=0.015)
+                # Lattice constants from the literature so we use
+                # them rather than the ones that the potential gives
+                mc_generate(configuration, pre_minimise=True)
         if structure == 'bulk':
             lattices = get('structure', 'lattice')
             info("Got lattices: {0}.".format(lattices))
@@ -201,6 +219,79 @@ def md_generate(configuration, pre_minimise=False):
                                    total_steps=total_steps, timestep=timestep,
                                    write_interval=write_interval,
                                    equilibration_steps=equilibration_steps)
+
+add_option('mc', 'potential', 'IP FS', str, "Potential function to use to "
+           "calculate the forces during monte carlo sampling.")
+add_option('mc', 'temperature', [300.0], float, "Temperatures in Kelvin to "
+           "run MD generation routines at.", multiple=True)
+add_option('mc', 'pressure', [0.0], float, "Pressure points in GPa to run "
+           "MD generation routines at.", multiple=True)
+add_option('mc', 'lattice_delta', 0.1, float, "Maximum step size to vary each "
+           "lattice vector.")
+add_option('mc', 'atom_delta', 0.1, float, "Maximum step size to move atoms "
+           "in each direction.")
+add_option('mc', 'write_interval', 10, int, "Only write out a configurations "
+           "after this many successful steps.")
+
+def mc_generate(configuration, pre_minimise=True):
+    """
+    Generate new configurations using Monte Carlo slice sampling on the input
+    configuration.
+
+    Parameters
+    ----------
+    configuration : ase.Atoms
+        Starting configuration of atoms.
+    pre_minimise : bool
+        Whether to run a minimisation on the structure before running the
+        molecular dynamics.
+    """
+
+    potential = get('mc', 'potential')
+    species = Element(get('structure', 'species'))
+    lattice_delta = get('mc', 'lattice_delta')
+    atom_delta = get('mc', 'atom_delta')
+    write_interval = get('mc', 'write_interval')
+    num_configs = get('sats', 'num_configs')
+
+    print(configuration.cell)
+    if pre_minimise:
+        relax_structure(configuration, potential, relax_cell=True)
+        e0 = configuration.energy
+    else:
+        e0 = None
+    print(configuration.cell)
+
+    info("Zero Energy {0}.".format(e0))
+
+    for pressure in get('mc', 'pressure'):
+        # Name does not get carried over in a copy()
+        p_config = configuration.copy()
+        if pressure != 0.0:
+            p_config.info['name'] = '{0}_{1:g}GPa'.format(
+                configuration.info['name'], pressure)
+        for volume in get('structure', 'volume_rescale'):
+            pv_config = p_config.copy()
+            if volume != 0.0:
+                pv_config.info['name'] = '{0}_{1:g}pc'.format(
+                    pv_config.info['name'], volume)
+            for temperature in get('mc', 'temperature'):
+                pvt_config = pv_config.copy()
+                rescale_factor = bulk_rescale_factor(species, temperature,
+                                                     pressure, volume)
+                info("State point volume scale factor: {0}.".format(
+                    rescale_factor))
+                pvt_config.set_cell(pvt_config.cell*rescale_factor,
+                                    scale_atoms=True)
+                full_name = '{0}_{1:g}K'.format(pvt_config.info['name'],
+                                                temperature)
+                castep_write(pvt_config, full_name, optimise=True,
+                             fix_lattice=True)
+                slice_sample(pvt_config, potential, temperature, pressure,
+                             lattice_delta, atom_delta, m_max=50, e0=e0,
+                             num_configs=num_configs,
+                             write_interval=write_interval)
+
 
 
 add_option('ui', 'help', False, bool, "Print out help information for the "
