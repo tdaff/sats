@@ -254,13 +254,11 @@ def mc_generate(configuration, pre_minimise=True):
     write_interval = get('mc', 'write_interval')
     num_configs = get('sats', 'num_configs')
 
-    print(configuration.cell)
     if pre_minimise:
         relax_structure(configuration, potential, relax_cell=True)
         e0 = configuration.energy
     else:
         e0 = None
-    print(configuration.cell)
 
     info("Zero Energy {0}.".format(e0))
 
@@ -291,7 +289,6 @@ def mc_generate(configuration, pre_minimise=True):
                              lattice_delta, atom_delta, m_max=50, e0=e0,
                              num_configs=num_configs,
                              write_interval=write_interval)
-
 
 
 add_option('ui', 'help', False, bool, "Print out help information for the "
