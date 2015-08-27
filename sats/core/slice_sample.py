@@ -6,19 +6,17 @@ Generic MCMC 'slice sample' routines.
 
 import os
 import math
-from random import uniform, randint
+from random import seed, uniform, randint
 
 import quippy
-from numpy import dot
-from numpy.linalg import inv
+import quippy.system
 from quippy import Atoms
 from quippy.io import AtomsWriter
 
-from quippy.potential import Potential, Minim
+from quippy.potential import Potential
 
 from sats.core.io import castep_write
 from sats.ui.log import info, debug
-from sats.util import Capturing
 
 
 class ParamWriter(object):
@@ -40,7 +38,7 @@ class ParamWriter(object):
         self.counter = 0
 
         # TODO: check naming
-        base_dir = os.getcwd()
+        self.base_dir = os.getcwd()
         run_path = '{0}'.format(atoms.info['name'])
         info("Putting files in {0}.".format(run_path))
         os.mkdir(run_path)
@@ -76,27 +74,12 @@ class ParamWriter(object):
         os.chdir('..')
         self.counter += 1
 
-    def write_config_old(self, atoms, params, name, potential):
+    def close(self):
         """
-        Write the configuration to a trajectory and a castep input file.
-
+        Clean up.
         """
-        cell_params = params[:6]
-        # Make a list of 3 item lists
-        atom_params = [atoms[0].position] + zip(*[iter(params[6:])] * 3)
-
-        new_atoms = atoms.copy()
-        new_atoms.set_cell([[cell_params[0], 0.0, 0.0],
-                            [cell_params[1], cell_params[2], 0.0],
-                            [cell_params[3], cell_params[4], cell_params[5]]])
-
-        new_atoms.set_positions(atom_params)
-        info("Cell volume: {0}".format(new_atoms.get_volume()))
-        potential.calc(new_atoms, energy=True, forces=True, virial=True)
-
-        new_atoms.write(name)
-        info("Written {0}.".format(name))
-
+        self.out.close()
+        os.chdir(self.base_dir)
 
 
 def create_density_function(atoms, potential, pressure, temperature, e0=None):
@@ -212,7 +195,7 @@ def increment_params(density_function, params, idx, delta, max_steps, df_0=None)
         else:
             break
 
-    #
+    # Find somewhere in the middle that's good
     while True:
         # Get a point in the middle
         slice_mid = slice_l + uniform(0, 1)*(slice_r-slice_l)
@@ -229,33 +212,15 @@ def increment_params(density_function, params, idx, delta, max_steps, df_0=None)
             slice_r = params_new[idx]
 
 
-def write_config(atoms, params, name, potential):
-    """
-    Write the configuration to a trajectory and a castep input file.
-
-    """
-    cell_params = params[:6]
-    # Make a list of 3 item lists
-    atom_params = [atoms[0].position] + zip(*[iter(params[6:])] * 3)
-
-    new_atoms = atoms.copy()
-    new_atoms.set_cell([[cell_params[0], 0.0, 0.0],
-                        [cell_params[1], cell_params[2], 0.0],
-                        [cell_params[3], cell_params[4], cell_params[5]]])
-
-    new_atoms.set_positions(atom_params)
-    info("Cell volume: {0}".format(new_atoms.get_volume()))
-    potential.calc(new_atoms, energy=True, forces=True, virial=True)
-
-    new_atoms.write(name)
-    info("Written {0}.".format(name))
-
-
 def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
                  atom_delta, m_max, e0=None, init_d=0, num_configs=10,
                  write_interval=1):
 
     info("Inside Slice Sample.")
+    quippy.system.system_set_random_seeds(101)
+    info("Quippy Random Seed 101.")
+    seed(101)
+    info("Python Random Seed 101")
     if not isinstance(potential, Potential):
         potential = Potential(potential)
 
@@ -283,7 +248,7 @@ def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
 
     # Floating count so that division by write_interval make it integer for
     # written configurations
-    count = 1.0
+    count = 0.0
     idx = init_d
     output = ParamWriter(bulk, bulk.info['name'], potential)
 
@@ -299,11 +264,10 @@ def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
         params, df_value = increment_params(density_function, params, idx,
                                             delta, m_max, df_0=df_value)
 
-        info("SLICE_SAMPLE: {0:g}".format(count/write_interval))
-        info("Params: {0}.".format(", ".join("{0}".format(x) for x in params)))
+        debug("SLICE_SAMPLE: {0:g}".format(count/write_interval))
+        debug("Params: {0}.".format(", ".join("{0}".format(x) for x in params)))
 
         if not count%write_interval:
-            write_config(bulk, params, 'slice_sample_{0:g}.xyz'.format(count/write_interval), potential)
             output.write_config(params)
 
         count += 1
@@ -311,4 +275,5 @@ def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
         if idx >= len(params):
             idx = 0
 
+    output.close()
     info("Slice Sample Done.")

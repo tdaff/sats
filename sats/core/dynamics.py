@@ -7,6 +7,7 @@ Generic dynamics routines.
 import os
 import sys
 
+import quippy.system
 from quippy import Atoms
 from quippy.dynamicalsystem import DynamicalSystem
 from quippy.io import AtomsWriter
@@ -99,6 +100,8 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
     """
 
     info("Inside MD.")
+    quippy.system.system_set_random_seeds(101)
+    info("Quippy Random Seed 101.")
     system = Atoms(system)
 
     # Can take Potential objects, or just use a string
