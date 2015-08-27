@@ -156,7 +156,11 @@ def format_defaults(width=80):
     defaults = []
     for section in sorted(DEFAULTS):
         for option in sorted(DEFAULTS[section]):
-            defaults.append("{0} {1} {2}".format(section, option,
-                                                 DEFAULTS[section][option]))
+            spec = DEFAULTS[section][option]
+            option_name = " {0}.{1} ".format(section, option)
+            default_bit = " {0.parser_function} {0.default_value}".format(spec)
+            padding = " "*(width-len(option_name)-len(default_bit))
+            defaults.append(option_name+padding+default_bit)
+            defaults.append("     {0}".format(spec.doc))
 
     return defaults
