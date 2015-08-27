@@ -59,7 +59,8 @@ def liquid(species, min_atoms=0, supercell=None):
     return super_atoms
 
 
-def bulk(species, lattice, min_atoms=0, supercell=None, lattice_constant=None):
+def bulk(species, lattice, min_atoms=0, supercell=None, lattice_constant=None,
+         covera=None):
     """
     Helper to generate a generic bulk configuration.
 
@@ -95,6 +96,10 @@ def bulk(species, lattice, min_atoms=0, supercell=None, lattice_constant=None):
         # different.
         atoms = ase_bulk(species, lattice, a=lattice_constant,
                          cubic=True)
+    elif lattice in ['hcp']:
+        if covera is None:
+            covera = properties[species]['covera'][lattice]
+        atoms = ase_bulk(species, lattice, a=lattice_constant, covera=covera)
     else:
         atoms = ase_bulk(species, lattice, a=lattice_constant,
                          orthorhombic=True)
@@ -116,7 +121,7 @@ def bulk(species, lattice, min_atoms=0, supercell=None, lattice_constant=None):
     return super_atoms
 
 
-def primitive(species, lattice, lattice_constant=None):
+def primitive(species, lattice, lattice_constant=None, covera=None):
     """
     Create the primitive unit cell of the given lattice.
 
@@ -139,6 +144,11 @@ def primitive(species, lattice, lattice_constant=None):
 
     if lattice == 'a15':
         atoms = a15(lattice_constant, species)
+    elif lattice in ['hcp']:
+        if covera is None:
+            covera = properties[species]['covera'][lattice]
+        atoms = ase_bulk(species, lattice, a=lattice_constant, covera=covera,
+                         orthorhombic=False)
     else:
         atoms = ase_bulk(species, lattice, a=lattice_constant,
                          orthorhombic=False)
