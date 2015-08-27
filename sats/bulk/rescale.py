@@ -12,13 +12,16 @@ from sats.ui.log import warning, error
 properties = {
     'W': {
         'lattice_constant': {
-            'bcc': 3.18,
-            'fcc': 3.95,
-            'hcp': 2.79,
-            'a15': 5.06,
-            'sc': 2.5,
+            'bcc': 3.1802684,
+            'fcc': 4.0325620,
+            'hcp': 2.773020,
+            'a15': 5.0741089,
+            'sc': 2.6349235,
             # This is melting density extrapolated to 0 by thermal expansion
             'liquid': ((2/(6.023E23*((17.6/1e24)/183.84)))**(1.0/3.0)/1.016997)
+        },
+        'covera': {
+            'hcp': 1.7835421309619117
         },
         'thermal_expansion': 4.6e-6,
         'thermal_expansion_ref': "10.6028/nbsscipaper.203",
