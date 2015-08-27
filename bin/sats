@@ -69,7 +69,7 @@ def sats_main():
             info("Got lattices: {0}.".format(lattices))
             for lattice in lattices:
                 configuration = bulk.primitive(species, lattice)
-                configuration.info['name'] = '{0}_primitive'.format(lattice)
+                configuration.info['name'] = '{0}_prim'.format(lattice)
                 info("Using structure {0}".format(configuration.info['name']))
                 # Write the as-generated structure
                 # This one needs higher accuracy for the virials
@@ -226,12 +226,13 @@ add_option('mc', 'temperature', [300.0], float, "Temperatures in Kelvin to "
            "run MD generation routines at.", multiple=True)
 add_option('mc', 'pressure', [0.0], float, "Pressure points in GPa to run "
            "MD generation routines at.", multiple=True)
-add_option('mc', 'lattice_delta', 0.1, float, "Maximum step size to vary each "
+add_option('mc', 'lattice_delta', 0.01, float, "Maximum step size to vary each "
            "lattice vector.")
-add_option('mc', 'atom_delta', 0.1, float, "Maximum step size to move atoms "
+add_option('mc', 'atom_delta', 0.01, float, "Maximum step size to move atoms "
            "in each direction.")
-add_option('mc', 'write_interval', 10, int, "Only write out a configurations "
+add_option('mc', 'write_interval', 100, int, "Only write out a configurations "
            "after this many successful steps.")
+
 
 def mc_generate(configuration, pre_minimise=True):
     """
@@ -283,8 +284,9 @@ def mc_generate(configuration, pre_minimise=True):
                                     scale_atoms=True)
                 full_name = '{0}_{1:g}K'.format(pvt_config.info['name'],
                                                 temperature)
+                pvt_config.info['name'] = full_name
                 castep_write(pvt_config, full_name, optimise=True,
-                             fix_lattice=True)
+                             fix_lattice=True, kpoint_spacing=0.015)
                 slice_sample(pvt_config, potential, temperature, pressure,
                              lattice_delta, atom_delta, m_max=50, e0=e0,
                              num_configs=num_configs,
