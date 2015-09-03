@@ -6,7 +6,7 @@ Generic MCMC 'slice sample' routines.
 
 import os
 import math
-from random import seed, uniform, randint
+from random import SystemRandom, seed, uniform, randint
 
 import quippy
 import quippy.system
@@ -214,13 +214,18 @@ def increment_params(density_function, params, idx, delta, max_steps, df_0=None)
 
 def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
                  atom_delta, m_max, e0=None, init_d=0, num_configs=10,
-                 write_interval=1):
+                 write_interval=-1, random_seed=None):
 
     info("Inside Slice Sample.")
-    quippy.system.system_set_random_seeds(101)
-    info("Quippy Random Seed 101.")
-    seed(101)
-    info("Python Random Seed 101")
+
+    # Randomise the random seed
+    if random_seed is None:
+        random_seed = SystemRandom().randint(0, 2**63)
+    quippy.system.system_set_random_seeds(random_seed)
+    seed(random_seed)
+    info("Quippy Random Seed {0}.".format(random_seed))
+    info("Python Random Seed {0}.".format(random_seed))
+
     if not isinstance(potential, Potential):
         potential = Potential(potential)
 
@@ -251,6 +256,11 @@ def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
     count = 0.0
     idx = init_d
     output = ParamWriter(bulk, bulk.info['name'], potential)
+
+    # Only write once everything has changed
+    if write_interval < 1:
+        write_interval = len(params)
+    info("Writing configurations after {0} steps.".format(write_interval))
 
     # Loop just iterates to the next value of x
     while count/write_interval < num_configs:

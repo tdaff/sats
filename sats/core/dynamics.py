@@ -6,6 +6,7 @@ Generic dynamics routines.
 
 import os
 import sys
+import random
 
 import quippy.system
 from quippy import Atoms
@@ -93,15 +94,18 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
 
 def molecular_dynamics(system, potential, temperature, total_steps=1100000,
                        timestep=1.0, connect_interval=200, write_interval=20000,
-                       equilibration_steps=100000, out_of_plane=None):
+                       equilibration_steps=100000, out_of_plane=None,
+                       random_seed=None):
     """
     Run very simple molecular dynamics to generate some configurations. Writes
     configurations out as xyz and CASTEP files.
     """
 
     info("Inside MD.")
-    quippy.system.system_set_random_seeds(101)
-    info("Quippy Random Seed 101.")
+    if random_seed is None:
+        random_seed = random.SystemRandom().randint(0, 2**63)
+    quippy.system.system_set_random_seeds(random_seed)
+    info("Quippy Random Seed {0}.".format(random_seed))
     system = Atoms(system)
 
     # Can take Potential objects, or just use a string
