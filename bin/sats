@@ -226,12 +226,13 @@ add_option('mc', 'temperature', [300.0], float, "Temperatures in Kelvin to "
            "run MD generation routines at.", multiple=True)
 add_option('mc', 'pressure', [0.0], float, "Pressure points in GPa to run "
            "MD generation routines at.", multiple=True)
-add_option('mc', 'lattice_delta', 0.01, float, "Maximum step size to vary each "
+add_option('mc', 'lattice_delta', 0.02, float, "Maximum step size to vary each "
            "lattice vector.")
-add_option('mc', 'atom_delta', 0.01, float, "Maximum step size to move atoms "
+add_option('mc', 'atom_delta', 0.02, float, "Maximum step size to move atoms "
            "in each direction.")
-add_option('mc', 'write_interval', 100, int, "Only write out a configurations "
-           "after this many successful steps.")
+add_option('mc', 'write_interval', -1, int, "Only write out a configurations "
+           "after this many successful steps. If set to a negative value, "
+           "this will be set to the number of degrees of freedom.")
 
 
 def mc_generate(configuration, pre_minimise=True):
@@ -245,7 +246,7 @@ def mc_generate(configuration, pre_minimise=True):
         Starting configuration of atoms.
     pre_minimise : bool
         Whether to run a minimisation on the structure before running the
-        molecular dynamics.
+        Monte Carlo.
     """
 
     potential = get('mc', 'potential')
@@ -287,6 +288,7 @@ def mc_generate(configuration, pre_minimise=True):
                 pvt_config.info['name'] = full_name
                 castep_write(pvt_config, full_name, optimise=True,
                              fix_lattice=True, kpoint_spacing=0.015)
+                # TODO: volume rescale of configs
                 slice_sample(pvt_config, potential, temperature, pressure,
                              lattice_delta, atom_delta, m_max=50, e0=e0,
                              num_configs=num_configs,
