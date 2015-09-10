@@ -8,6 +8,8 @@ General utility functions with no home.
 import os
 import sys
 
+from numpy.linalg import inv
+
 from sats.ui.log import debug
 
 
@@ -43,3 +45,40 @@ class Capturing(list):
         if self.debug_on_exit:
             for line in self:
                 debug(line)
+
+
+def kpoint_spacing_to_mesh(structure, density):
+    """
+    Calculate the kpoint mesh that is equivalent to the given density
+    in reciprocal Angstrom.
+
+    Parameters
+    ----------
+    structure : ase.Atoms
+        A structure that can have get_reciprocal_cell called on it.
+    density : float
+        K-Point density in $A^{-1}$.
+
+    Returns
+    -------
+    kpoint_mesh : [int, int, int]
+
+    """
+    # No factor of 2pi in ase, otherwise need to divide through in the mesh
+    try:
+        r_cell = structure.get_reciprocal_cell()
+    except NameError:
+        r_cell = inv(structure.cell).transpose()
+
+    r_x = sum(x**2 for x in r_cell[0])**0.5
+    r_y = sum(x**2 for x in r_cell[1])**0.5
+    r_z = sum(x**2 for x in r_cell[2])**0.5
+
+    kpoint_mesh = [
+        int(r_x/(density)) + 1,
+        int(r_y/(density)) + 1,
+        int(r_z/(density)) + 1]
+
+    debug("Kpoints: {}".format(kpoint_mesh))
+
+    return kpoint_mesh
