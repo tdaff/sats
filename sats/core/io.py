@@ -5,8 +5,12 @@ File reading and writing utilities.
 
 """
 
+from collections import OrderedDict
+
 from quippy import Atoms
 from quippy.castep import CastepCell, CastepParam
+
+from sats.util import kpoint_spacing_to_mesh
 
 BASE_CELL = {'kpoint_mp_spacing': 0.03,
              'SPECIES_POT': ['W /work/e89/e89/tdd20/Tungsten/W_OTF.usp']}
@@ -63,3 +67,94 @@ def castep_write(atoms, filename='default.cell', optimise=False,
 
     param = CastepParam(paramfile=local_param, atoms=atoms)
     param.write(param_filename)
+
+
+def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None):
+    """Write a simple espresso .pwi file. Not very custom at the moment"""
+
+    # File to write
+    pwi = []
+
+    if prefix is None:
+        prefix = structure.info['name']
+
+    default_species = {
+        'Fe': (55.845, 'Fe.pbe-spn-rrkjus_psl.0.2.1.UPF'),
+        'H': (1.008, 'H.pbe-rrkjus_psl.0.1.UPF')}
+
+    pwi_params = OrderedDict(
+        [('CONTROL', OrderedDict([
+            ('prefix', prefix),
+            ('calculation', 'relax'),
+            ('restart_mode', 'from_scratch'),
+            ('pseudo_dir', './pseudo/'),
+            ('outdir', './{0}_scratch/'.format(prefix)),
+            ('verbosity', 'high'),
+            ('tprnfor', True),
+            ('tstress', True),
+            ('disk_io', 'low'),
+            ('wf_collect', True),
+            ('max_seconds', 82800)])),
+        ('SYSTEM', OrderedDict([
+            ('ibrav', 0),
+            ('nat', len(structure)),
+            ('ntyp', len(set(structure.numbers))),
+            #('ecutwfc', 90),
+            #('ecutrho', 1080),
+            ('ecutwfc', 60),
+            ('ecutrho', 720),
+            ('occupations', 'smearing'),
+            ('smearing', 'marzari-vanderbilt'),
+            ('degauss', 0.01),
+            ('nspin', 2),
+            ('starting_magnetization', 0.36),
+            ('nosym', True)])),
+        ('ELECTRONS', OrderedDict([
+            ('electron_maxstep', 300),
+            ('mixing_beta', 0.2),
+            ('conv_thr', 1e-8)])),
+        ('IONS', OrderedDict([
+            ('ion_dynamics', 'bfgs')]))])
+
+    if custom_pwi:
+        raise NotImplementedError("PWI customisation not implemented yet!")
+
+    for section in pwi_params:
+        pwi.append("&{0}\n".format(section))
+        for key, value in pwi_params[section].items():
+            if value is True:
+                pwi.append('   {0:16} = .true.\n'.format(key))
+            else:
+                # repr format to get quotes around strings
+                pwi.append('   {0:16} = {1!r:}\n'.format(key, value))
+        pwi.append("/\n")
+    pwi.append('\n')
+
+    # Pseudopotentials
+    pwi.append("ATOMIC_SPECIES\n")
+    for species in set(atom.symbol for atom in structure):
+        pwi.append("{0} {1[0]} {1[1]}\n".format(species, default_species[species]))
+    pwi.append("\n")
+
+    # KPOINTS
+    pwi.append("K_POINTS automatic\n")
+    pwi.append("{0[0]} {0[1]} {0[2]}  1 1 1\n".format(kpoint_spacing_to_mesh(structure, 0.03)))
+    pwi.append("\n")
+
+    # CELL block
+    pwi.append("CELL_PARAMETERS angstrom\n")
+    pwi.append("{cell[0][0]:.16f} {cell[0][1]:.16f} {cell[0][2]:.16f}\n"
+               "{cell[1][0]:.16f} {cell[1][1]:.16f} {cell[1][2]:.16f}\n"
+               "{cell[2][0]:.16f} {cell[2][1]:.16f} {cell[2][2]:.16f}\n"
+               "".format(cell=structure.cell))
+    pwi.append("\n")
+
+    # Positions
+    pwi.append("ATOMIC_POSITIONS angstrom\n")
+    for atom in structure:
+        pwi.append("{atom.symbol} {atom.x:.10f} {atom.y:.10f} {atom.z:.10f}"
+                   "\n".format(atom=atom))
+    pwi.append("\n")
+
+    with open("{0}.pwi".format(prefix), 'w') as out:
+        out.write("".join(pwi))
