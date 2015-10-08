@@ -28,6 +28,7 @@ _valid_structures = [
     'surface',  # intermediate 2x2 surfaces
     'interstitial',  # Various interstitial constructs
     'vacancy',
+    'mod_existing',  # modify existing structure with a new atom
 ]
 add_option('structure', 'type', [], str, "Type of structures to generate.",
            multiple=True, valid_values=_valid_structures)
