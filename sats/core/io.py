@@ -7,6 +7,7 @@ File reading and writing utilities.
 
 from collections import OrderedDict
 
+from ase.constraints import FixAtoms
 from quippy import Atoms
 from quippy.castep import CastepCell, CastepParam
 
@@ -85,7 +86,7 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None)
     pwi_params = OrderedDict(
         [('CONTROL', OrderedDict([
             ('prefix', prefix),
-            ('calculation', 'relax'),
+            ('calculation', 'scf'),
             ('restart_mode', 'from_scratch'),
             ('pseudo_dir', './pseudo/'),
             ('outdir', './{0}_scratch/'.format(prefix)),
@@ -99,10 +100,10 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None)
             ('ibrav', 0),
             ('nat', len(structure)),
             ('ntyp', len(set(structure.numbers))),
-            #('ecutwfc', 90),
-            #('ecutrho', 1080),
-            ('ecutwfc', 60),
-            ('ecutrho', 720),
+            ('ecutwfc', 90),
+            ('ecutrho', 1080),
+            #('ecutwfc', 60),
+            #('ecutrho', 720),
             ('occupations', 'smearing'),
             ('smearing', 'marzari-vanderbilt'),
             ('degauss', 0.01),
@@ -138,7 +139,7 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None)
 
     # KPOINTS
     pwi.append("K_POINTS automatic\n")
-    pwi.append("{0[0]} {0[1]} {0[2]}  1 1 1\n".format(kpoint_spacing_to_mesh(structure, 0.03)))
+    pwi.append("{0[0]} {0[1]} {0[2]}  1 1 1\n".format(kpoint_spacing_to_mesh(structure, kpoint_spacing)))
     pwi.append("\n")
 
     # CELL block
@@ -150,10 +151,19 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None)
     pwi.append("\n")
 
     # Positions
+    mask = [False]*len(structure)
+    for constraint in structure.constraints:
+        if isinstance(constraint, FixAtoms):
+            mask = [any([x, y]) for x, y in zip(mask, constraint.index)]
+
     pwi.append("ATOMIC_POSITIONS angstrom\n")
-    for atom in structure:
+    for atom, masked in zip(structure, mask):
         pwi.append("{atom.symbol} {atom.x:.10f} {atom.y:.10f} {atom.z:.10f}"
-                   "\n".format(atom=atom))
+                   "".format(atom=atom))
+        if masked:
+            # Fix position
+            pwi.append(" 0 0 0")
+        pwi.append("\n")
     pwi.append("\n")
 
     with open("{0}.pwi".format(prefix), 'w') as out:
