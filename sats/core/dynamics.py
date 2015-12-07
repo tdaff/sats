@@ -9,12 +9,13 @@ import sys
 import random
 
 import quippy.system
+from ase.io.extxyz import write_extxyz
 from quippy import Atoms
 from quippy.dynamicalsystem import DynamicalSystem
 from quippy.io import AtomsWriter
 from quippy.potential import Potential, Minim
 
-from sats.core.io import castep_write
+from sats.core.io import castep_write, espresso_write
 from sats.ui.log import info, debug
 
 
@@ -51,7 +52,9 @@ class Capturing(list):
             for line in self:
                 debug(line)
 
-def relax_structure(system, potential, relax_positions=True, relax_cell=True):
+
+def relax_structure(system, potential, potential_filename=None,
+                    relax_positions=True, relax_cell=True):
     """
     Run a geometry optimisation on the structure to find the energy minimum.
 
@@ -74,7 +77,10 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
     qsystem = Atoms(system)
 
     if not isinstance(potential, Potential):
-        potential = Potential(potential)
+        if potential_filename:
+            potential = Potential(potential, param_filename=potential_filename)
+        else:
+            potential = Potential(potential)
     qsystem.set_calculator(potential)
 
     minimiser = Minim(qsystem, relax_positions=relax_positions,
@@ -92,8 +98,9 @@ def relax_structure(system, potential, relax_positions=True, relax_cell=True):
     return system
 
 
-def molecular_dynamics(system, potential, temperature, total_steps=1100000,
-                       timestep=1.0, connect_interval=200, write_interval=20000,
+def molecular_dynamics(system, potential, potential_filename=None,
+                       temperature=300, total_steps=1100000, timestep=1.0,
+                       connect_interval=200, write_interval=20000,
                        equilibration_steps=100000, out_of_plane=None,
                        random_seed=None):
     """
@@ -110,7 +117,10 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
 
     # Can take Potential objects, or just use a string
     if not isinstance(potential, Potential):
-        potential = Potential(potential)
+        if potential_filename:
+            potential = Potential(potential, param_filename=potential_filename)
+        else:
+            potential = Potential(potential)
     system.set_calculator(potential)
 
     dynamical_system = DynamicalSystem(system)
@@ -155,7 +165,7 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
                     dynamical_system.rescale_velo(temperature)
 
         if not step_number % write_interval:
-            debug("Write at step {0}".format(step_number))
+            debug("Status at step {0}".format(step_number))
             # Print goes to captured stdout
             with Capturing(debug_on_exit=True):
                 dynamical_system.print_status(
@@ -163,6 +173,7 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
                 dynamical_system.rescale_velo(temperature)
 
             if step_number > equilibration_steps:
+                debug("Write at step {0}".format(step_number))
                 out.write(dynamical_system.atoms)
                 sp_path = '{0:03d}'.format(structure_count)
                 write_filename = '{0}_{1:g}.{2:03d}'.format(
@@ -171,6 +182,9 @@ def molecular_dynamics(system, potential, temperature, total_steps=1100000,
                 os.chdir(sp_path)
                 castep_write(dynamical_system.atoms,
                              filename=write_filename)
+                espresso_write(dynamical_system.atoms, prefix=write_filename)
+                write_extxyz("{0}.xyz".format(write_filename),
+                             dynamical_system.atoms)
                 info("Wrote a configuration {0}.".format(write_filename))
                 os.chdir('..')
                 structure_count += 1

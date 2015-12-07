@@ -212,9 +212,9 @@ def increment_params(density_function, params, idx, delta, max_steps, df_0=None)
             slice_r = params_new[idx]
 
 
-def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
-                 atom_delta, m_max, e0=None, init_d=0, num_configs=10,
-                 write_interval=-1, random_seed=None):
+def slice_sample(bulk, potential, potential_filename, temperature, pressure,
+                 lattice_delta, atom_delta, m_max, e0=None, init_d=0,
+                 num_configs=10, write_interval=-1, random_seed=None):
 
     info("Inside Slice Sample.")
 
@@ -227,7 +227,10 @@ def slice_sample(bulk, potential, temperature, pressure, lattice_delta,
     info("Python Random Seed {0}.".format(random_seed))
 
     if not isinstance(potential, Potential):
-        potential = Potential(potential)
+        if potential_filename:
+            potential = Potential(potential, param_filename=potential_filename)
+        else:
+            potential = Potential(potential)
 
     bulk = Atoms(bulk)
     # pressure in GPa -> eV/A^3
