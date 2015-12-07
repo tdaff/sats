@@ -70,7 +70,7 @@ def castep_write(atoms, filename='default.cell', optimise=False,
     param.write(param_filename)
 
 
-def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None):
+def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None):
     """Write a simple espresso .pwi file. Not very custom at the moment"""
 
     # File to write
@@ -102,23 +102,31 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.03, custom_pwi=None)
             ('ntyp', len(set(structure.numbers))),
             ('ecutwfc', 90),
             ('ecutrho', 1080),
-            #('ecutwfc', 60),
-            #('ecutrho', 720),
             ('occupations', 'smearing'),
             ('smearing', 'marzari-vanderbilt'),
             ('degauss', 0.01),
             ('nspin', 2),
-            ('starting_magnetization', 0.36),
             ('nosym', True)])),
         ('ELECTRONS', OrderedDict([
             ('electron_maxstep', 300),
-            ('mixing_beta', 0.2),
-            ('conv_thr', 1e-8)])),
+            ('mixing_beta', 0.05),
+            ('conv_thr', 1e-9)])),
         ('IONS', OrderedDict([
             ('ion_dynamics', 'bfgs')]))])
 
+    # Make sure that magnetization is applied to the iron
+    for idx, species in enumerate(set(atom.symbol for atom in structure), 1):
+        if species == 'Fe':
+            mag_str = 'starting_magnetization({0})'.format(idx)
+            pwi_params['SYSTEM'][mag_str] = 0.32
+
     if custom_pwi:
-        raise NotImplementedError("PWI customisation not implemented yet!")
+        for section in custom_pwi:
+            if section.upper() in pwi_params:
+                pwi_params[section.upper()].update(custom_pwi[section])
+            else:
+                pwi_params[section.upper()] = custom_pwi[section]
+        #raise NotImplementedError("PWI customisation not implemented yet!")
 
     for section in pwi_params:
         pwi.append("&{0}\n".format(section))
