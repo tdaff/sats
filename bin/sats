@@ -55,9 +55,12 @@ add_option('structure', 'base', ['base.xyz'], str, "Base structure to add "
            "requested modification to. Choose substructure by index "
            "as file.xyz@idx.", multiple=True)
 add_option('structure', 'mod', ['add_species'], str, "Modification to apply "
-           "to the structure.", multiple=True, valid_values=['add_species'])
+           "to the structure. Concatenate modifications with + between them.",
+           multiple=True, valid_values=['add_species', 'supercell'])
 add_option('structure', 'fix_original', True, bool, "Fix the positions of "
            "atoms within the base structure for any dynamics.")
+add_option('structure', 'supercell', [1, 1, 1], int, "Make multiple copies of "
+           "the atoms within the structure.", multiple=True)
 
 
 def sats_main():
@@ -70,6 +73,7 @@ def sats_main():
     structures = get('structure', 'type')
     species = Element(get('structure', 'species'))
     min_atoms = get('structure', 'min_atoms')
+    supercell = get('structure', 'supercell')
     info("Got structures: {0}.".format(", ".join(structures)))
 
     for structure in structures:
@@ -169,7 +173,8 @@ def sats_main():
             for base in base_structures:
                 for mod in mods:
                     configuration = mod_existing.modify(
-                        base, mod, species=species, count=min_atoms)
+                        base, mod, species=species, count=min_atoms,
+                        supercell=supercell)
                     base_name = configuration.info.get('name', 'structure')
                     configuration.info['name'] = "{0}".format(base_name)
                     md_generate(configuration, rescale=False)
@@ -328,6 +333,7 @@ def mc_generate(configuration, pre_minimise=True):
 
 add_option('ui', 'help', False, bool, "Print out help information for the "
            "program, including available options.")
+
 
 def ui_help():
     """

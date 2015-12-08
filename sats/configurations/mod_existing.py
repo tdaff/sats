@@ -10,6 +10,7 @@ from random import uniform
 
 import ase.io
 from ase import Atom
+from ase.calculators.singlepoint import SinglePointCalculator
 from numpy import array
 
 from sats.core.elements import Element
@@ -36,7 +37,11 @@ def modify(filename, modification, **kwargs):
 
     """
 
+    # So we can do multiple things, like supercell+add_species, in order
+    modifications = modification.split('+')
+
     mods = {
+        'supercell': make_supercell,
         'add_species': add_species
     }
 
@@ -57,13 +62,60 @@ def modify(filename, modification, **kwargs):
     except NotImplementedError:
         pass
 
-    new_atoms = mods[modification](atoms, **kwargs)
+    # This is the virial, not the stress!
+    try:
+        atoms.info['base_virial'] = atoms.info.pop('virial')
+    except KeyError:
+        pass
+
+    # mod functions should manipulate the 'base' properties
+    new_atoms = atoms.copy()
+    for do_mod in modifications:
+        new_atoms = mods[do_mod](new_atoms, **kwargs)
+
+    return new_atoms
+
+
+def make_supercell(atoms, supercell=(1, 1, 1), **kwargs):
+    """
+    Create a supercell of the input structure. Atoms are repeated in
+    each direction by the factors. Forces are copied to new atoms, energy is
+    multiplied by the number of images.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Initial structure from which to make copies.
+    supercell : list of int
+        Number of copies to make in each direction.
+
+    Returns
+    -------
+    structure : ase.Atoms
+        Supercell of initial structure.
+
+    """
+
+    new_atoms = atoms * supercell
+
+    if isinstance(supercell, int):
+        supercell = [supercell, supercell, supercell]
+
+    multiplication_factor = supercell[0]*supercell[1]*supercell[2]
+
+    # Try to multiply out the energy by the number of cells
+    # base_forces array is automatically multiplied, virial does not change
+    if 'base_energy' in new_atoms.info:
+        new_atoms.info['base_energy'] *= multiplication_factor
+
+    atoms.info['name'] = "{0}_sc_{1[0]}{1[1]}{1[2]}".format(
+        atoms.info.get('name', 'structure'), supercell)
 
     return new_atoms
 
 
 def add_species(atoms, species='H', count=1, min_dist=0.8, maxiter=10,
-                fix_original=True):
+                fix_original=True, **kwargs):
     """
     Parameters
     ----------
