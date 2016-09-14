@@ -114,8 +114,8 @@ def make_supercell(atoms, supercell=(1, 1, 1), **kwargs):
     return new_atoms
 
 
-def add_species(atoms, species='H', count=1, min_dist=0.8, maxiter=10,
-                fix_original=True, **kwargs):
+def add_species(atoms, species='H', count=1, min_dist=0.8, max_dist=2.0,
+                maxiter=10, fix_original=True, **kwargs):
     """
     Parameters
     ----------
@@ -129,6 +129,9 @@ def add_species(atoms, species='H', count=1, min_dist=0.8, maxiter=10,
     min_dist : float
         Keep moving the atoms until the added atom is at least this far from
         everything else.
+    max_dist : float
+        Keep moving the atoms until the added atom is at least this close to
+        at least one atom.
     maxiter : int
         Number of times to attempt to fit within min_dist. Otherwise just use
         the final configuration.
@@ -157,7 +160,7 @@ def add_species(atoms, species='H', count=1, min_dist=0.8, maxiter=10,
                 uniform(0, atoms.cell[0][2]) + uniform(0, atoms.cell[1][2]) + uniform(0, atoms.cell[2][2])]
             atoms[-1].position = new_position
 
-            if min(atoms.get_distances(-1, range(len(atoms)-1))) > min_dist:
+            if max_dist > min(atoms.get_distances(-1, range(len(atoms)-1))) > min_dist:
                 break
 
     # set move_mask to 1 only on atom that may move
