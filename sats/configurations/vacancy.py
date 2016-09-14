@@ -61,7 +61,8 @@ def vacancy(lattice, species, n_vacancies=1, min_atoms=0, direction=None):
         if norm(cross(separation, direction)) < 1.0e-5:
             line_atoms.append((norm(separation), atom.index))
 
-    for atom in sorted(line_atoms, reverse=True)[-n_vacancies:]:
-        del vbulk[atom[1]]
+    if n_vacancies >= 1:
+        for atom in sorted(line_atoms, reverse=True)[-n_vacancies:]:
+            del vbulk[atom[1]]
 
     return vbulk

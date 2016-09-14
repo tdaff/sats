@@ -160,7 +160,7 @@ def add_species(atoms, species='H', count=1, min_dist=0.8, max_dist=2.0,
                 uniform(0, atoms.cell[0][2]) + uniform(0, atoms.cell[1][2]) + uniform(0, atoms.cell[2][2])]
             atoms[-1].position = new_position
 
-            if max_dist > min(atoms.get_distances(-1, range(len(atoms)-1))) > min_dist:
+            if max_dist > min(atoms.get_distances(-1, range(len(atoms)-1), mic=True)) > min_dist:
                 break
 
     # set move_mask to 1 only on atom that may move
