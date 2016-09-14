@@ -47,7 +47,7 @@ class Capturing(list):
                 debug(line)
 
 
-def kpoint_spacing_to_mesh(structure, density):
+def kpoint_spacing_to_mesh(structure, density, spacing=None):
     """
     Calculate the kpoint mesh that is equivalent to the given density
     in reciprocal Angstrom.
@@ -58,6 +58,9 @@ def kpoint_spacing_to_mesh(structure, density):
         A structure that can have get_reciprocal_cell called on it.
     density : float
         K-Point density in $A^{-1}$.
+    spacing : list
+        If a three item list is given it will be replaced with the
+        actual calculated spacing.
 
     Returns
     -------
@@ -80,5 +83,11 @@ def kpoint_spacing_to_mesh(structure, density):
         int(r_z/(density)) + 1]
 
     debug("Kpoints: {}".format(kpoint_mesh))
+
+    if spacing is not None:
+        spacing[:] = [r_x/kpoint_mesh[0],
+                      r_y/kpoint_mesh[1],
+                      r_z/kpoint_mesh[2]]
+        debug("Spacing: {}".format(spacing))
 
     return kpoint_mesh

@@ -133,6 +133,8 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
         for key, value in pwi_params[section].items():
             if value is True:
                 pwi.append('   {0:16} = .true.\n'.format(key))
+            elif value is False:
+                pwi.append('   {0:16} = .false.\n'.format(key))
             else:
                 # repr format to get quotes around strings
                 pwi.append('   {0:16} = {1!r:}\n'.format(key, value))
@@ -151,18 +153,21 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
     pwi.append("\n")
 
     # CELL block
-    pwi.append("CELL_PARAMETERS angstrom\n")
-    pwi.append("{cell[0][0]:.16f} {cell[0][1]:.16f} {cell[0][2]:.16f}\n"
-               "{cell[1][0]:.16f} {cell[1][1]:.16f} {cell[1][2]:.16f}\n"
-               "{cell[2][0]:.16f} {cell[2][1]:.16f} {cell[2][2]:.16f}\n"
-               "".format(cell=structure.cell))
-    pwi.append("\n")
+    if pwi_params['SYSTEM']['ibrav'] == 0:
+        pwi.append("CELL_PARAMETERS angstrom\n")
+        pwi.append("{cell[0][0]:.16f} {cell[0][1]:.16f} {cell[0][2]:.16f}\n"
+                   "{cell[1][0]:.16f} {cell[1][1]:.16f} {cell[1][2]:.16f}\n"
+                   "{cell[2][0]:.16f} {cell[2][1]:.16f} {cell[2][2]:.16f}\n"
+                   "".format(cell=structure.cell))
+        pwi.append("\n")
 
     # Positions
     mask = [False]*len(structure)
     for constraint in structure.constraints:
         if isinstance(constraint, FixAtoms):
-            mask = [any([x, y]) for x, y in zip(mask, constraint.index)]
+            for idx in constraint.index:
+                mask[idx] = True
+#            mask = [any([x, y]) for x, y in zip(mask, constraint.index)]
 
     pwi.append("ATOMIC_POSITIONS angstrom\n")
     for atom, masked in zip(structure, mask):
