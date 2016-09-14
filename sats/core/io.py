@@ -165,9 +165,8 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
     mask = [False]*len(structure)
     for constraint in structure.constraints:
         if isinstance(constraint, FixAtoms):
-            for idx in constraint.index:
-                mask[idx] = True
-#            mask = [any([x, y]) for x, y in zip(mask, constraint.index)]
+            for index in constraint.index:
+                mask[index] = True
 
     pwi.append("ATOMIC_POSITIONS angstrom\n")
     for atom, masked in zip(structure, mask):
@@ -178,6 +177,14 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
             pwi.append(" 0 0 0")
         pwi.append("\n")
     pwi.append("\n")
+
+    if 'external_force' in structure.arrays:
+        pwi.append("ATOMIC_FORCES\n")
+        pwi.append(
+            '\n'.join(
+                ' '.join('{0}'.format(fxyz) for fxyz in force) 
+                          for force in structure.arrays['external_force']))
+        pwi.append('\n')
 
     with open("{0}.pwi".format(prefix), 'w') as out:
         out.write("".join(pwi))
