@@ -7,7 +7,8 @@ File reading and writing utilities.
 
 from collections import OrderedDict
 
-from ase.constraints import FixAtoms
+import numpy as np
+from ase.constraints import FixAtoms, FixCartesian
 from quippy import Atoms
 from quippy.castep import CastepCell, CastepParam
 
@@ -70,7 +71,8 @@ def castep_write(atoms, filename='default.cell', optimise=False,
     param.write(param_filename)
 
 
-def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None):
+def espresso_write(structure, prefix=None, kpoint_spacing=0.03,
+                   custom_pwi=None):
     """Write a simple espresso .pwi file. Not very custom at the moment"""
 
     # File to write
@@ -79,9 +81,14 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
     if prefix is None:
         prefix = structure.info['name']
 
-    default_species = {
-        'Fe': (55.845, 'Fe.pbe-spn-rrkjus_psl.0.2.1.UPF'),
-        'H': (1.008, 'H.pbe-rrkjus_psl.0.1.UPF')}
+    # mass, pseudopot, magnetisation
+    default_pseudo = {
+        'Fe': 'Fe.pbe-spn-rrkjus_psl.0.2.1.UPF',
+        'H': 'H.pbe-rrkjus_psl.0.1.UPF'}
+
+    default_magmom = {
+        'Fe': 0.32,
+        'H': 0.0}
 
     pwi_params = OrderedDict(
         [('CONTROL', OrderedDict([
@@ -114,11 +121,59 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
         ('IONS', OrderedDict([
             ('ion_dynamics', 'bfgs')]))])
 
-    # Make sure that magnetization is applied to the iron
-    for idx, species in enumerate(set(atom.symbol for atom in structure), 1):
-        if species == 'Fe':
-            mag_str = 'starting_magnetization({0})'.format(idx)
-            pwi_params['SYSTEM'][mag_str] = 0.32
+    # Nx3 array of constraints matches what QE uses
+    constraint_mask = np.ones((len(structure), 3), dtype='int')
+    for constraint in structure.constraints:
+        if isinstance(constraint, FixAtoms):
+            constraint_mask[constraint.index] = 0
+        elif isinstance(constraint, FixCartesian):
+            constraint_mask[constraint.a] = constraint.mask
+
+    # Make different types for different magnetic moments
+    # Rememeber: magnetisation uses 1 based indexes
+    atomic_species = OrderedDict()
+    atomic_species_str = []
+    atomic_positions_str = []
+    if 'magmoms' in structure.arrays:
+        # Spin has been set manually
+        for atom, magmom in zip(structure, structure.arrays['magmoms']):
+            if (atom.symbol, magmom) not in atomic_species:
+                sidx = len(atomic_species) + 1
+                atomic_species[(atom.symbol, magmom)] = sidx
+                mag_str = 'starting_magnetization({0})'.format(sidx)
+                pwi_params['SYSTEM'][mag_str] = float(magmom)
+                atomic_species_str.append(
+                    "{species}{sidx} {mass} {pseudo}\n".format(
+                        species=atom.symbol, sidx=sidx, mass=atom.mass,
+                        pseudo=default_pseudo[atom.symbol]))
+            # lookup sidx to append to name
+            sidx = atomic_species[(atom.symbol, magmom)]
+            atomic_positions_str.append(
+                "{atom.symbol}{sidx} "
+                "{atom.x:.10f} {atom.y:.10f} {atom.z:.10f} "
+                "{mask[0]} {mask[1]} {mask[2]}\n".format(
+                    atom=atom, sidx=sidx, mask=constraint_mask[atom.index]))
+
+        # different magnetisms means different types
+        pwi_params['SYSTEM']['ntyp'] = len(atomic_species)
+    else:
+        # Apply default spin for atoms if they need it
+        for atom in structure:
+            if atom.symbol not in atomic_species:
+                sidx = len(atomic_species) + 1
+                atomic_species[atom.symbol] = sidx
+                if default_magmom[atom.symbol] != 0.0:
+                    mag_str = 'starting_magnetization({0})'.format(sidx)
+                    pwi_params['SYSTEM'][mag_str] = default_magmom[atom.symbol]
+                atomic_species_str.append(
+                    "{species} {mass} {pseudo}\n".format(
+                        species=atom.symbol, mass=atom.mass,
+                        pseudo=default_pseudo[atom.symbol]))
+            atomic_positions_str.append(
+                "{atom.symbol} "
+                "{atom.x:.10f} {atom.y:.10f} {atom.z:.10f} "
+                "{mask[0]} {mask[1]} {mask[2]}\n".format(
+                    atom=atom, mask=constraint_mask[atom.index]))
 
     if custom_pwi:
         for section in custom_pwi:
@@ -126,7 +181,6 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
                 pwi_params[section.upper()].update(custom_pwi[section])
             else:
                 pwi_params[section.upper()] = custom_pwi[section]
-        #raise NotImplementedError("PWI customisation not implemented yet!")
 
     for section in pwi_params:
         pwi.append("&{0}\n".format(section))
@@ -143,8 +197,7 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
 
     # Pseudopotentials
     pwi.append("ATOMIC_SPECIES\n")
-    for species in set(atom.symbol for atom in structure):
-        pwi.append("{0} {1[0]} {1[1]}\n".format(species, default_species[species]))
+    pwi.extend(atomic_species_str)
     pwi.append("\n")
 
     # KPOINTS
@@ -162,27 +215,15 @@ def espresso_write(structure, prefix=None, kpoint_spacing=0.05, custom_pwi=None)
         pwi.append("\n")
 
     # Positions
-    mask = [False]*len(structure)
-    for constraint in structure.constraints:
-        if isinstance(constraint, FixAtoms):
-            for index in constraint.index:
-                mask[index] = True
-
     pwi.append("ATOMIC_POSITIONS angstrom\n")
-    for atom, masked in zip(structure, mask):
-        pwi.append("{atom.symbol} {atom.x:.10f} {atom.y:.10f} {atom.z:.10f}"
-                   "".format(atom=atom))
-        if masked:
-            # Fix position
-            pwi.append(" 0 0 0")
-        pwi.append("\n")
+    pwi.extend(atomic_positions_str)
     pwi.append("\n")
 
     if 'external_force' in structure.arrays:
         pwi.append("ATOMIC_FORCES\n")
         pwi.append(
             '\n'.join(
-                ' '.join('{0}'.format(fxyz) for fxyz in force) 
+                ' '.join('{0}'.format(fxyz) for fxyz in force)
                           for force in structure.arrays['external_force']))
         pwi.append('\n')
 
